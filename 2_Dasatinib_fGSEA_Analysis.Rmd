@@ -1,0 +1,199 @@
+---
+title: "Dasatinib_fGSEA_Analysis"
+author: "Kieran Redpath"
+date: "19 March 2021"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load Packages
+```{r, results='hide', warning=FALSE, message=FALSE}
+library(CePa)
+library(data.table)
+library(dplyr)
+library(edgeR)
+library(fgsea)
+library(ggplot2)
+library(limma)
+library(reactome.db)
+library(org.Hs.eg.db)
+set.seed(42)
+```
+
+### Load and process the data
+```{r}
+hs <- (org.Hs.eg.db)
+
+# Load raw data, and normalise raw expression data.
+ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
+# Remove X's from cell lines that start with a number.
+colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# Normalise with the edgeR and limma packages.
+dge <- DGEList(counts = ccleExpData)
+dge <- calcNormFactors(dge)
+dge_voom <- voom(dge, plot = FALSE)
+expDat <- dge_voom$E
+expDatRaw <- expDat
+
+# GDSC2 Data for differential expression analysis.
+GDSC2 <- fread('Data/GDSC2_fitted_dose_response_25Feb20.csv', sep= ';')
+dim(GDSC2)
+dasatinib <- GDSC2 %>% filter(., DRUG_NAME=="Dasatinib")
+colnames(expDat) <- strsplit(colnames(expDat), "_") %>% 
+  lapply(., function(x) x[1]) %>% 
+  unlist()
+
+# Filters for cell lines that are shared between the GDSC and CCLE datasets.
+dasatinib$CELL_LINE_NAME <- gsub("-","",dasatinib$CELL_LINE_NAME, fixed=TRUE)
+commonSamples <- intersect(dasatinib$CELL_LINE_NAME,colnames(expDat))
+expDat_match <- match(commonSamples, colnames(expDat))
+expDat_sort <- expDat[ , na.omit(expDat_match)]
+dasatinib_match <- match(commonSamples, dasatinib$CELL_LINE_NAME)
+dasatinib_sort <- dasatinib[na.omit(dasatinib_match),]
+colnames(dasatinib_sort)[5] <- "CCLE_Name"
+# Down to 472 cell lines
+
+# Filters dasatinib data for the two tissues of interest, and removes the middle 33% of samples (based on AUC), so that we're only looking at the extremes. Then filters "expDat_sort" so it's also only these cell lines, those that have data for the drug of interest, and CDH1 expression data.
+dasatinib_sort <- dasatinib_sort %>% filter(., TCGA_DESC=="BRCA" | TCGA_DESC=="STAD")  
+dasatinib_sort <- dasatinib_sort[ dasatinib_sort$AUC < quantile(dasatinib_sort$AUC , 0.33) | dasatinib_sort$AUC > quantile(dasatinib_sort$AUC, 0.66), ]
+dasatinib_sort$CDH1 <- expDat_sort %>% as.data.frame() %>% dplyr::select(., which(colnames(.) %in% dasatinib_sort$CCLE_Name)) %>%  .["ENSG00000039068.14",] %>% as.vector() %>% t()
+expDat_sort <- expDat_sort %>% subset(., select=which(colnames(expDat_sort) %in% dasatinib_sort$CCLE_Name))
+
+
+# Gene label tool to convert gene ID's.
+GeneLabelTool <- strsplit(rownames(expDatRaw), '\\.') %>% 
+  lapply(., function(x) x[1]) %>% 
+  unlist()
+GeneLabelTool <- AnnotationDbi::select(hs,
+                                       keys = GeneLabelTool,
+                                       columns = c("ENSEMBL", "ENTREZID", "SYMBOL"),
+                                       keytype = "ENSEMBL")
+GeneLabelTool <- na.omit(GeneLabelTool)
+```
+### Manage existing data
+```{r}
+# Look at the existing data
+sum(colnames(expDat_sort)==dasatinib_sort$CCLE_Name)
+names(dasatinib_sort)
+
+# Fits the expression data to a linear model.
+group2 <- ifelse(dasatinib_sort$AUC > median(dasatinib_sort$AUC), "High", "Low")
+table(group2)
+boxplot(dasatinib_sort$AUC ~ group2)
+design2 = model.matrix(~group2);
+design2 %>% head()
+colnames(design2) = c("Mean", "HighVsLow")
+fit2 = lmFit(expDat_sort, design2)
+fit2 = eBayes(fit2)
+tt2 = topTable(fit2, coef="HighVsLow", adjust="BH",n=nrow(expDat_sort))
+options(digits=4)
+```
+
+
+### Carry out GSEA to find significant reactome pathways
+```{r}
+# Format the gene list for reactome pathway analysis.
+de <- data.table(tt2, keep.rownames = TRUE)
+ranks <- de[order(t), list(rn, t)]
+
+# Make sure ranks$rn matches the format of GeneLabelTool (no alternate transcripts).
+ranks$rn <- strsplit(ranks$rn, '\\.') %>% 
+  lapply(., function(x) x[1]) %>% 
+  unlist()
+
+# Convert gene list from ENSG to Entrez ID's.
+ranks$rn <- match(ranks$rn, GeneLabelTool$ENSEMBL) %>% 
+    GeneLabelTool$ENTREZID[.]
+# Remove NA's from gene list.
+ranks <- na.omit(ranks)
+
+# Find reactome pathways.
+fgseapathways <- reactomePathways(ranks$rn)
+
+
+# convert the gene list into the right format for analysis.
+ranks2 <- ranks$t
+names(ranks2) <- ranks$rn
+ranks2 <- ranks2[!duplicated(names(ranks2))]
+
+expDat_Dup <- expDat[ , !duplicated(colnames(expDat))]  
+  
+# Carry out gsea analysis.
+fgseaRes <- fgsea(fgseapathways, ranks2, maxSize=500)
+fgseaRes <- fgseaRes[order(padj),]
+```
+
+### Compare GSEA pathways to goseq pathways
+```{r}
+# Load goseqPathways.
+goseqPathways <- read.csv("Data/goseq_Das_Pathways.csv", row.names = 1)
+
+# Compare the top 100 pathways between goseq and gsea analysis.
+# intersect(fgseaRes$pathway[1:100], goseqPathways$Pathway[1:100])
+intersect(fgseaRes$pathway[1:100], goseqPathways$Pathway[1:100]) %>% length(.)
+# 39 of which overlap (with current lists).
+
+# Returns the position in the second argument of the values in the first argument.
+# match(goseqPathways$Pathway[1:100], fgseaRes$pathway[1:100])
+
+# Compare all of the pathways shared between goseq and gsea analysis.
+# intersect(fgseaRes$pathway, goseqPathways$Pathway)
+intersect(fgseaRes$pathway, goseqPathways$Pathway) %>% length(.)
+# 349 of which overlap (with current lists).
+```
+
+There isn't the craziest amount of overlap (especially in the top 100), especially when you you look at the positions of the goseqPathways in the fgseaRes pathways.
+
+### Look at the overlap between significant pathways
+```{r}
+# Subset to find significant pathways in each pathway list.
+sigfgseaRes <- fgseaRes[fgseaRes$padj < 0.05, ]
+nrow(sigfgseaRes)
+siggoseqPathways <- goseqPathways[goseqPathways$adjP < 0.05, ]
+nrow(siggoseqPathways)
+
+intersect(sigfgseaRes$pathway, siggoseqPathways$Pathway)
+intersect(sigfgseaRes$pathway, siggoseqPathways$Pathway) %>% length(.)
+# 51 of these pathways overlap (with all  SigGenes, where there's only 76 from goseq anyway).
+# 27 of these pathways overlap (with only 2000 SigGenes, where there's only 28 from goseq anyway).
+```
+
+### Try collapsing pathways so there's less overlap between them for analysis.
+```{r, warning=FALSE}
+# Collapse Pathways
+collapsedPathways <- collapsePathways(fgseaRes[padj < 0.05],
+                                      fgseapathways, ranks2)
+# Analyse these a bit.
+mainPathways <- fgseaRes[pathway %in% collapsedPathways$mainPathways][
+order(-NES), pathway]
+# Cool.
+```
+
+### Plot the first couple of pathways as GSEA enrichment plots.
+```{r}
+# Plot the first pathway.
+plotEnrichment(fgseapathways[["Assembly of collagen fibrils and other multimeric structures"]], ranks2)
+# Plot the second pathway.
+plotEnrichment(fgseapathways[["Cell surface interactions at the vascular wall"]], ranks2)
+# Plot the third pathway.
+plotEnrichment(fgseapathways[["Collagen biosynthesis and modifying enzymes"]], ranks2)
+# Plot the very last pathway for comparison.
+plotEnrichment(fgseapathways[["Manipulation of host energy metabolism"]], ranks2)
+
+# Plot the table - not really sure what's happening here or what I'm supposed to be seeing
+topPathways <- fgseaRes[head(order(padj), n = 20)][order(NES), pathway]
+pdf(file = "Dasatinib_fGSEA_Analysis_Output/Other/fgseaOutput.pdf", width = 11, height = 25)
+plotGseaTable(fgseapathways[topPathways], ranks2, fgseaRes, gseaParam=0.5, colwidths = c(5, 3, 0.8, 1.2, 1.2), render = TRUE)
+dev.off()
+```
+
+
+

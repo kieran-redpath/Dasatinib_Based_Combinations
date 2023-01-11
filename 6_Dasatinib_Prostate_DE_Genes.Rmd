@@ -1,0 +1,242 @@
+---
+title: "6_Dasatinib_Prostate_DE_Genes.Rmd"
+author: "Kieran Redpath"
+date: "29/06/2021"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load Packages
+```{r, results = 'hide', warning = FALSE, message = FALSE}
+library(AnnotationDbi)
+library(dplyr)
+library(ggplot2)
+library(ggsignif)
+library(gplots)
+library(hgu133a2.db)
+library(limma)
+library(org.Hs.eg.db)
+library(ReactomePA)
+library(viridis)
+hs <- (org.Hs.eg.db)
+set.seed(42)
+```
+
+### Load Data and Setup
+```{r, results = 'hide'}
+# Load RMA normalised microarray data from dasatinib and DMSO treated prostate cancer cell lines
+NormalisedPCAData <- read.csv(file = "Data/13059_2007_1735_MOESM4_treated+control_ESM.csv", header = FALSE, sep = ";", row.names = 1, strip.white	
+= TRUE) %>% data.frame(.)
+# Rename columns of the same cell line type so they aren't duplicated
+for(i in 1:ncol(NormalisedPCAData)){
+  NormalisedPCAData[1,i] <- paste0(NormalisedPCAData[1,i], " ", NormalisedPCAData[2,i])
+  NormalisedPCAData[1,i] <- gsub(pattern = " ", replacement = "_", NormalisedPCAData[1,i])
+  colnames(NormalisedPCAData)[i] <- NormalisedPCAData[1,i]
+}
+# Create an object of the experimental info on the cell lines: treatment and sensitivity data
+ExpInfo <- NormalisedPCAData[2:3, ]
+# Remove the experimental info from the microarray data, leaving a matrix of gene values
+NormalisedPCAData <- NormalisedPCAData[-c(1:3), ] %>% as.matrix(.)
+
+# Assign microarray to gene annotation data
+Symbol <- as.list(hgu133a2SYMBOL)
+# Replace probe id's with gene id's, removing probes that don't correlate to a gene
+NormalisedPCAData <- subset(NormalisedPCAData, subset = !is.na(Symbol))
+rownames(NormalisedPCAData) <- subset(Symbol, subset = !is.na(Symbol))
+# Convert the matrix to numeric so lmFit understands it
+class(NormalisedPCAData) <- "numeric"
+```
+
+### Remove Resistant Samples
+```{r}
+# Remove resistant samples as these are unlikely to exhibit changes in gene expression
+NormalisedPCAData <- NormalisedPCAData[ ,grep(pattern = "S", ExpInfo[2,])]
+ExpInfo <- ExpInfo[ ,grep(pattern = "S", ExpInfo[2,])]
+```
+
+### Use Limma for Paired Samples to Find Differentially Expressed Genes
+```{r}
+# Get all the necessary information into one data frame
+PairedData <- data.frame(
+  SampleNames = colnames(NormalisedPCAData),
+  Treatment = as.character(ExpInfo[1, ]),
+  Pairs = c(1, 2, 3, 4, 5) %>% rep(., each = 2))
+# Create the design matrix and fit the expression data to a linear model
+Pairs <- factor(PairedData$Pairs)
+Treatment <- factor(PairedData$Treatment, levels = c("DMSO ctrl", "Dasatinib"))
+design <- model.matrix(~Pairs+Treatment)
+fit <- lmFit(NormalisedPCAData, design) %>% eBayes(.)
+tt <- topTable(fit, adjust.method = "BH", coef="TreatmentDasatinib", n = nrow(NormalisedPCAData))
+# Remove duplicates
+tt <- tt[!duplicated(tt$ID), ]
+# Rename rows with Gene IDs
+rownames(tt) <- tt$ID
+tt <- tt[ ,-c(1)]
+# How many significantly DE genes are there?
+sum(tt$adj.P.Val < 0.05)
+```
+
+### Plot the expression of the top genes from coef = "TreatmentDasatinib"
+```{r}
+# Select Gene of Interest
+GOI <- "LAMC2"
+
+# Create a dataframe to plot the data with
+CellLine <- gsub(pattern = "_DMSO_ctrl", replacement = "", colnames(NormalisedPCAData)) %>% gsub(pattern = "_Dasatinib", replacement = "", .)
+
+df2 <- data.frame(Expression = NormalisedPCAData[GOI, ], Treatment = as.character(ExpInfo["Treatment", ]), CellLine, Pairs = c(1, 2, 3, 4, 5) %>% rep(., each = 2))
+df2$CellLine <- as.factor(df2$CellLine)
+
+# Try to plot the data
+ggplot(df2, aes(x = Pairs, y = Expression, group = Treatment, colour = Treatment)) +
+  geom_line(size = 1)
+```
+
+### Set Thresholds and Explore the Top Table
+```{r}
+# Define log FC threshold
+# l <- 3
+# Filter out non-significant genes (alpha = 0.05) and those with a low absolute log FC in expression. Could also filter on meeting a lower threshold but in every cell line
+# PCATopTableSigFC <- subset(tt, subset = adj.P.Val < 0.05 & (abs(Pairs2) > l & abs(Pairs3) > l & abs(Pairs4) > l & abs(Pairs5) > l))
+# How many genes satisfy these conditions?
+# nrow(PCATopTableSigFC)
+
+# volcano plot of genes in $Pairs2: Those on either top corner would be included in the analysis if we were only looking at Pairs2. Only works if you're using the first fit you came up with
+volcanoplot(fit, coef = "TreatmentDasatinib")
+abline(h = -log10(0.05), lty = 2, col = "blue3")
+abline(v = c(-3, 3), lty = 2, col = "blue3")
+
+# Work in progress
+# Plot the FC in expression of a given gene based on treatment vs control - might be better to plot paired delta though
+# topExp <- NormalisedPCAData[match(rownames(PCATopTableSigFC)[560], rownames(NormalisedPCAData)), ]
+topExp <- NormalisedPCAData["CDH1", ]
+topGeneDF <- data.frame(topGene = topExp, Treatment = ExpInfo[1,])
+ggplot(topGeneDF, aes(x = Treatment, y = topGene)) + geom_boxplot() + geom_signif(stat = "signif", test = "wilcox.test", map_signif_level = TRUE)
+```
+
+### Carry Out Pathway Enrichment Analysis on this Gene List
+# This should all work, but you need the right list of genes first.
+```{r}
+# Create a new gene list based on higher FC's
+ttGSEA <- subset(tt, subset = abs(logFC) > 0.6)
+ttGSEA <- tt
+
+# Do GSEA first as it's the easiest
+ttENTREZ <- AnnotationDbi::select(hs,
+                                keys = rownames(ttGSEA),
+                                columns = "ENTREZID",
+                                keytype = "SYMBOL",
+                                multiVals = "first")
+
+# Remove symbols that mapped to duplicate Entrez ID's
+ ttENTREZ <- ttENTREZ[-which(duplicated(ttENTREZ$SYMBOL)), ]
+
+
+# Filter out genes without Entrez ID's
+ttGSEA$ENTREZID <- ttENTREZ$ENTREZID
+ttGSEA <- filter(ttGSEA, ttGSEA$ENTREZID != "NA")
+
+# Create the list of ranked, named F statistics
+ttRankedGSEA <- ttGSEA$t # %>% abs(.)
+names(ttRankedGSEA) <- ttGSEA$ENTREZID
+
+# AKT3_20502_ranked_GSEA <- as.character(AKT3_20502_ranked_GSEA) %>% as.numeric(.)
+#ttRankedGSEA <- as.character(ttRankedGSEA) %>% as.numeric(.)
+
+# Sort based on t statistic
+ttRankedGSEA <- sort(ttRankedGSEA, decreasing = TRUE)
+
+# Carry out gene set enrichment
+ttGenesGSEA <- gsePathway(ttRankedGSEA, organism = "human", minGSSize = 10, pvalueCutoff = 0.05, pAdjustMethod = "BH", by = "fgsea", eps = 0)
+
+# Create a plot of these pathways - probably change to ggplot as in goseq if you use it - currently does nothing as there are no results to plot
+png(file = "Dasatinib_Prostate_DE_Genes_Output/PCA_Genes_GSEA.png", width = 4000, height = 2000, res = 400, pointsize = 20)
+dotplot(ttGenesGSEA, showCategory = 15, font.size = 8, label_format = 20)
+dev.off()
+```
+
+### Cluster gene/pathway overlap in a red-white heatmap so you can see how similar various pathways are
+```{r, fig.height=11.5, fig.width=11}
+### Extract data, ordering pathways by adjusted p-value
+ttGenesPathInfo <- ttGenesGSEA@result %>% .[order(ttGenesPathInfo$p.adjust), ]
+
+# Extract gene composition, and but only the top 15
+ttGenesPathComp <- ttGenesGSEA@geneSets %>% .[which(names(.) %in% ttGenesPathInfo$ID[1:15])]
+# Order this list based on adjusted p-value
+ttGenesPathComp <- ttGenesPathComp[order(match(names(ttGenesPathComp), ttGenesPathInfo$ID[1:15]))]
+
+# Create a matrix of these pathways and their overlap
+sigPathCorPCA <- matrix(0, length(ttGenesPathComp), length(ttGenesPathComp))
+rownames(sigPathCorPCA) <- colnames(sigPathCorPCA) <- ttGenesPathInfo$Description[1:15]
+
+for(a in 1:length(ttGenesPathComp)){
+  for(b in 1:length(ttGenesPathComp)){
+    if (a > b) sigPathCorPCA[a,b] <- length(intersect(ttGenesPathComp[[a]], ttGenesPathComp[[b]])) /
+        min(length(ttGenesPathComp[[a]]), length(ttGenesPathComp[[b]]))
+    if(a <= b) sigPathCorPCA[a,b] <- length(intersect(ttGenesPathComp[[a]], ttGenesPathComp[[b]])) /
+        max(length(ttGenesPathComp[[a]]), length(ttGenesPathComp[[b]]))
+  }
+}
+
+# Plot the data
+cols <- colorRampPalette(c("white", "red"))(n = 50)
+oo <- as.dendrogram(hclust(dist(sigPathCorPCA)))
+heatmap.2(sigPathCorPCA, scale='none', trace='none', col=cols, key=TRUE, 
+          keysize=0.85, mar=c(26,26),cexRow = 0.8, cexCol=0.8,
+          main="Pathway overlap (genes): Dasatinib associated PCA pathways", 
+          Rowv = oo, Colv=oo)
+# There are two obvious clusters
+```
+
+### Make a heatmap of Cell Cycle, Mitotic
+```{r, warning = FALSE, message = FALSE}
+# Find the exact genes you need
+CCMGenes <- ttGenesPathComp[["R-HSA-69278"]]
+# Convert to symbols
+CCMGenes <- AnnotationDbi::select(hs,
+                                  keys = CCMGenes,
+                                  columns = "SYMBOL",
+                                  keytype = "ENTREZID",
+                                  multiVals = "first") %>% .$SYMBOL
+CCMGenes <- CCMGenes[which(CCMGenes %in% rownames(NormalisedPCAData))]
+# Find these genes in the expression matrix
+HeatmapGenes <- NormalisedPCAData[CCMGenes, ]
+# Create the matrix to plot
+xx <- apply(HeatmapGenes, 1, scale, scale = TRUE) %>% t()
+colnames(xx) <- colnames(HeatmapGenes)
+# Cut down on extreme values so colours work better
+xx[xx > 3] <- 3
+xx[xx < -3] <- -3
+
+# Create a colour bar for treatment type
+treatmentcols <- matrix((as.factor(ExpInfo[1,]) %>% as.numeric(.) %>% cividis(length(table(.)), direction = 1)[.]), nrow = 1)
+rownames(treatmentcols) <- ""
+# Order the columns by treatment type
+colord <- order(ExpInfo[1,])
+# Create heatmaps and save them as pngs.
+png("Dasatinib_Prostate_DE_Genes_Output/Cell_Cycle_Mitotic_PCA_heatmap.png", width = 2000, height = 2000)
+heatmap.mik(xx[ , colord],
+            trace = 'none',
+            scale = 'none',
+            col = bluered(50),
+            ColSideColors = treatmentcols[ , colord],
+            Colv = FALSE,
+            mar = c(4,12),
+            keysize = 1, cexRow = 32/nrow(xx)
+)
+# Add a legend and larger title
+legend(x = 0.5, y = 0.9, legend = c("Control", "Dasatinib"), fill = c("#FFEA46FF", "#00204DFF"), ncol = 2, cex = 3)
+title("\"Cell Cycle, Mitotic\" Gene Expression Patterns in Dasatinib Vs Control Treated PCA Cell Lines", cex.main = 3)
+dev.off()
+
+# It works! The problem is that changes in gene expression between cell lines will always be greater than changes in treatment (Also you can't see the sample names)
+```

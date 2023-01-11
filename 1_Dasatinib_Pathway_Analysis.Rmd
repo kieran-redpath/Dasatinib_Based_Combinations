@@ -1,0 +1,567 @@
+---
+title: "1_Dasatinib_Pathway_Analysis"
+author: "Kieran Redpath"
+date: "19 March 2021"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+* __Setup:__
++ Loads packages.
++ Loads and processes data from the CCLE (which is then normalised) and the GDSC.
++ Filters this down to just the relevant information, incorporating information on CDH1 mutation status.
+
+* __Differential Expression Analysis:__
++ Carries out differential expression analysis for IC50 and AUC (individually), to determine what genes are significantly differentially expressed in dasatinib resistant/susceptible cell lines.
++ Finds the intersect between the best results for IC50 and AUC, determining that the relationship between them is important (even though results may not appear significant).
++ Saves this table as a .csv.
+
+* __Processing IC50 and AUC Differential Expression Data:__
++ Creates new objects to be fed into pathway analyses.
++ Ranks samples based on average adjusted P value between IC50 and AUC.
++ Plots the relationship between IC50/AUC and gene expression data.
+
+* __Pathway Analysis:__
++ Finds pathways based on a list of genes, using the "goseq" package (both length-corrected and non length-corrected).
++ Extracts genes in the dataset from each pathway.
+
+* __Heatmap Construction:__
++ Builds heatmaps for all the genes in each pathway, and saves them as .png's.
++ Creates a heatmap of the genes shared between pathways.
++ Graphs the CDH1 mutation status of each cell line, showing the split between CDH1+ and CDH1- cell lines.
+
+* __Print the Significant Pathways:__
++ Prints heatmaps in the document for the pathways with an adjusted p value of <0.05.
+
+### A note on the relationship between IC50 and AUC
+The GDSC data appears to be innaccurately labelled, as natural logged instead of -logged. This means there is a positive relationship between AUC and ln IC50, as what is labelled ln IC50 is actually -log IC50, meaning the relationship is reversed (there is a negative correlation between AUC and ln IC50 (which is called IC50)). The rest of this document assumes that this is true, because if it's not then nothing makes any sense. However, this is just an assumption, we don't have any concrete proof. Also note that genes with a +ve fold change in expression are involved in resistance and vice versa.
+
+## Setup
+
+### Load packages
+```{r, results='hide', warning=FALSE, message=FALSE}
+library(limma)
+library(edgeR)
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(CePa)
+library(tidyverse)
+library(ggbeeswarm)
+library(dplyr)
+library(ReactomePA)
+library(org.Hs.eg.db)
+library(reactome.db)
+library(goseq)
+library(gplots)
+source('Data/heatmap-mik.R')
+library(knitr)
+library(kableExtra)
+library(devtools)
+library(viridis)
+set.seed(42)
+```
+
+### Load data
+```{r, results='hide'}
+# Loads in Entrez ID's from the human genome.
+hs <- org.Hs.eg.db
+
+# Loads expression data from the CCLE, and normalises it with "voom".
+ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
+logExpDat <- log(ccleExpData + 0.5)
+dge <- DGEList(counts=ccleExpData)
+dge <- calcNormFactors(dge)
+dge_voom <- voom(dge, plot=TRUE)
+expDat <- dge_voom$E
+expDatsplit <- expDat
+
+# Loads the GDSC dataset, and filters for cell lines that have data for dasatinib. 
+GDSC2 <- fread('Data/GDSC2_fitted_dose_response_25Feb20.csv', sep = ';')
+dim(GDSC2)
+dasatinib <- GDSC2 %>% filter(., DRUG_NAME=="Dasatinib")
+colnames(expDat) <- strsplit(colnames(expDat), "_") %>% 
+  lapply(., function(x) x[1]) %>% 
+  unlist()
+
+# Filters for cell lines that are shared between the GDSC and CCLE datasets.
+dasatinib$CELL_LINE_NAME <- gsub("-","",dasatinib$CELL_LINE_NAME, fixed = TRUE)
+commonSamples <- intersect(dasatinib$CELL_LINE_NAME,colnames(expDat))
+expDat_match <- match(commonSamples, colnames(expDat))
+expDat_sort <- expDat[ , na.omit(expDat_match)]
+dasatinib_match <- match(commonSamples, dasatinib$CELL_LINE_NAME)
+dasatinib_sort <- dasatinib[na.omit(dasatinib_match),]
+colnames(dasatinib_sort)[5] <- "CCLE_Name"
+# Down to 472 cell lines
+
+# Filters dasatinib data for the two tissues of interest, and removes the middle 33% of samples (based on AUC), so that we're only looking at the extremes. Then filters "expDat_sort" so it's also only these cell lines, those that have data for the drug of interest, and CDH1 expression data.
+dasatinib_sort <- dasatinib_sort %>% filter(., TCGA_DESC == "BRCA" | TCGA_DESC == "STAD")  
+dasatinib_sort <- dasatinib_sort[ dasatinib_sort$AUC < quantile(dasatinib_sort$AUC , 0.33) | dasatinib_sort$AUC > quantile(dasatinib_sort$AUC, 0.66), ]
+dasatinib_sort$CDH1 <- expDat_sort %>% as.data.frame() %>% dplyr::select(., which(colnames(.) %in% dasatinib_sort$CCLE_Name)) %>%  .["ENSG00000039068.14",] %>% as.vector() %>% t()
+expDat_sort <- expDat_sort %>% subset(., select=which(colnames(expDat_sort) %in% dasatinib_sort$CCLE_Name))
+# Down to 37 cell lines.
+
+# Creates a tool for determining tissue type based on cell line identifier, or vice versa. Two versions are created, one for all tissues, the other for the three of interest (and specifically samples with expression data).
+lng <- length(colnames(expDatsplit))
+tissuetool <-data.frame(Cell_Line = character(lng),Tissue_Type = character(lng))
+tissuetool$Cell_Line <- strsplit(colnames(expDatsplit), "_") %>% 
+  lapply(., function(x) x[1]) %>% 
+  unlist()
+tissuetool$Tissue_Type <- strsplit(colnames(expDatsplit), "_") %>% 
+  lapply(., function(x) x[-1])%>%
+  paste(., sep="_", collapse = NULL) %>% 
+  unlist()
+tissuetool$Tissue_Type <- gsub('c', '', tissuetool$Tissue_Type)
+tissuetool$Tissue_Type <- gsub('[[:punct:]]', '', tissuetool$Tissue_Type)
+tissuetool$Tissue_Type <- gsub(' ', '_', tissuetool$Tissue_Type)
+tissuetoolsort <- filter(tissuetool, Tissue_Type=="BREAST" | Tissue_Type=="STOMACH")
+
+int <- intersect(colnames(expDat_sort), tissuetoolsort$Cell_Line)
+tissuetool_match <- match(int, tissuetoolsort$Cell_Line)
+tissuetoolsort <- tissuetoolsort[na.omit(tissuetool_match) , ]
+```
+
+## Differential Expression Analysis
+
+### Differential expression analysis for IC50
+```{r}
+# Prints some basic information about the objects that will be used for further analyses, for reference.
+sum(colnames(expDat_sort)==dasatinib_sort$CCLE_Name)
+names(dasatinib_sort)
+
+# Fits the expression data to a linear model. 
+group <- ifelse(dasatinib_sort$LN_IC50 > median(dasatinib_sort$LN_IC50), "High", "Low")
+table(group)
+boxplot(dasatinib_sort$LN_IC50 ~ group)
+design = model.matrix(~group);
+design %>% head()
+colnames(design) = c("Mean", "HighVsLow")
+fit = lmFit(expDat_sort, design)
+fit = eBayes(fit)
+tt = topTable(fit, coef="HighVsLow", adjust="BH",n=nrow(expDat_sort))
+options(digits=4)
+
+# Plots the first gene on the list, and counts the number of significant samples (threshold of 0.01).
+plot(density(expDat_sort[,1]))
+sum(tt$adj.P.Val<0.05)
+
+# Creates a volcano plot of the IC50 fold change vs. adjusted P value, showing significant samples with high fold change in red.
+sigFC = (tt$adj.P.Val < 0.05)  & (abs(tt$logFC) > 1)
+volcanoplot(fit, coef="HighVsLow")
+points(tt$logFC[which(sigFC)], 
+       -log10(tt$P.Value[which(sigFC)]), 
+       cex=0.6, col='red', pch=16)
+abline(h = min(-log10(tt$P.Value[which(sigFC)])), lty=2, col='blue')
+abline(v = c(-1,1), lty=2, col='blue')
+
+# Provides basic information on the top table.
+split <- strsplit(rownames(tt),".", fixed=T) %>% lapply(., function(x) x[1]) %>% unlist()
+geneNames <- AnnotationDbi::select(org.Hs.eg.db, keys = split, column = c("SYMBOL","GENENAME"), key="ENSEMBL")
+dim(tt)
+tt$symbol <- geneNames$SYMBOL[match(split, geneNames$ENSEMBL)]
+invisible(setDT(tt, keep.rownames = TRUE)[])
+
+# Prints a list of the top 50 associated genes (can be altered to create larger lists for pathway analysis). Also creates a histogram and shows the median of IC50 values.
+# cat(na.omit(tt$symbol[1:50]),sep="\n")
+hist(dasatinib_sort$LN_IC50,50)
+median(dasatinib_sort$LN_IC50)
+
+# Finds the top expression values, visualising the positive correlation between gene expression and IC50.
+topExp <- expDat_sort[match(tt$rn[1], rownames(expDat_sort)),]
+df <- data.frame(topGene=topExp, ic50=group)
+ggplot(df, aes(x=ic50, y=topGene)) + geom_boxplot()
+```
+
+### Differential expression analysis for AUC
+```{r}
+# Prints some basic information about the objects that will be used for further analyses, for reference.
+sum(colnames(expDat_sort)==dasatinib_sort$CCLE_Name)
+names(dasatinib_sort)
+
+# Fits the expression data to a linear model.
+group2 <- ifelse(dasatinib_sort$AUC > median(dasatinib_sort$AUC), "High", "Low")
+table(group2)
+boxplot(dasatinib_sort$AUC ~ group2)
+design2 = model.matrix(~group2);
+design2 %>% head()
+colnames(design2) = c("Mean"
+,"HighVsLow"
+)
+fit2 = lmFit(expDat_sort, design2)
+fit2 = eBayes(fit2)
+tt2 = topTable(fit2, coef="HighVsLow", adjust="BH",n=nrow(expDat_sort))
+options(digits=4)
+
+# Plots the first gene on the list, and counts the number of significant samples (threshold of 0.05).
+plot(density(expDat_sort[,1]))
+sum(tt2$adj.P.Val<0.05)
+
+# Creates a volcano plot of the AUC fold change vs. adjusted P value, showing significant samples with high fold change in red.
+sigFC2 = (tt2$adj.P.Val < 0.05)  & (abs(tt2$logFC) > 1)
+volcanoplot(fit2, coef="HighVsLow")
+points(tt2$logFC[which(sigFC2)], 
+       -log10(tt2$P.Value[which(sigFC2)]), 
+       cex=0.6, col='red', pch=16)
+abline(h = min(-log10(tt2$P.Value[which(sigFC2)])), lty=2, col='blue')
+abline(v = c(-1,1), lty=2, col='blue')
+
+# Provides basic information on the top table, and prints the first 20 genes, for reference.
+split2 <- strsplit(rownames(tt2),".", fixed=T) %>% lapply(., function(x) x[1]) %>% unlist()
+geneNames2 <- AnnotationDbi::select(org.Hs.eg.db, keys = split2, column = c("SYMBOL","GENENAME"), key="ENSEMBL")
+dim(tt2)
+tt2$symbol <- geneNames2$SYMBOL[match(split2, geneNames2$ENSEMBL)]
+invisible(setDT(tt2, keep.rownames = TRUE)[])
+tt2[1:20,] %>% kable() %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size=8), fixed_thead=T)
+
+# Prints a list of the top 50 associated genes (can be altered to create larger lists for pathway analysis). Also creates a histogram and shows the median of AUC values.
+cat(na.omit(tt2$symbol[1:50]),sep="\n")
+hist(dasatinib_sort$AUC,50)
+median(dasatinib_sort$AUC)
+
+# Finds the top expression values, visualising the negative correlation between gene expression and AUC.
+topExp2 <- expDat_sort[match(tt2$rn[1], rownames(expDat_sort)),]
+df2 <- data.frame(topGene=topExp2, AUC=group)
+ggplot(df2, aes(x=AUC, y=topGene)) + geom_boxplot()
+```
+
+### Look at the overlap between IC50 and AUC - DON'T REALLY NEED THIS
+* This is to determine whether or not there is more overlap between the top tables for IC50 and AUC than we would expect to see by chance.
+* We do see more overlap than we would expect by chance, indicating that the relationship is important, even though the results may not appear signficant.
+```{r}
+# # Shows the overlap between the top 500 samples for each variable.
+# venn(list(ic50=tt$rn[1:500], auc=tt2$rn[1:500]))
+# overlap <- c()
+# sz <- c(50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000, 10000, 20000, 40000, 50000)
+# for(i in 1:length(sz)) overlap[i] <- length(intersect(tt$rn[1:sz[i]], tt2$rn[1:sz[i]]))
+# expect <- sz^2/nrow(tt) 
+# plot(sz, expect, type='b', ylim=c(0,max(overlap)))
+# points(sz, overlap, type='b', col='red')
+```
+
+## Processing IC50 and AUC Differential Expression Data
+
+### Finding the overlap between significant samples
+* This information (present in top table 3) will be used for pathway analysis.
+```{r}
+# Creates a new top table, containing the information for both IC50 and AUC, with ensembl ID's and gene symbols.
+tt3 <- full_join(tt, tt2, by= "rn")
+tt3 <- dplyr::select(tt3, -c("symbol.x", "P.Value.y", "P.Value.x", "t.y", "t.x", "B.x", "B.y", "AveExpr.x"))
+tt3 <- dplyr::rename(tt3, "Gene_Symbol" = "symbol.y", "AUC_logFC" = "logFC.y", "Avg_Exp" = "AveExpr.y", "AUC_Adj_PVal" = "adj.P.Val.y", "IC50_logFC" = "logFC.x", "IC50_Adj_PVal" = "adj.P.Val.x", "Ensembl_ID" = "rn")
+tt3 <- tt3[ ,c(7,1,5,2,3,4,6)]
+
+# Identifies that the sign of the log fold change is consistent with the IC50 and AUC relationship. As IC50 and AUC have an opposite association with cell line resistance/susceptibility to dasatinib, only samples with -log fold change signs (IC50 log FC sign*AUC log FC sign) are kept. Need to check this.
+tt3 <- mutate(tt3, sign(tt3$IC50_logFC), sign(tt3$AUC_logFC))
+tt3 <- mutate(tt3, sign(tt3$IC50_logFC)*sign(tt3$AUC_logFC))
+tt3 <- dplyr::rename(tt3, "logFC_Sign" = "sign(tt3$IC50_logFC) * sign(tt3$AUC_logFC)", "IC50_Sign" = "sign(tt3$IC50_logFC)", "AUC_Sign" = "sign(tt3$AUC_logFC)")
+
+# Ranks samples based on average rank between IC50 and AUC adjusted P values.
+tt3 <-
+  tt3 %>% mutate(., rank_ic50=rank(IC50_Adj_PVal)) %>%
+  mutate(., rank_auc=rank(AUC_Adj_PVal)) %>%
+  mutate(., avg_rank=0.5*(rank_auc + rank_ic50)) %>%
+  arrange(., avg_rank)
+```
+
+### TEST - Carry out reactome pathway analysis with only the AUC data to see what happens.
+```{r}
+# tt3 <- tt2
+# tt3$logFC_Sign = sign(tt3$logFC)
+# tt3 <- 
+#   tt3 %>% mutate(., avg_rank = rank(adj.P.Val)) %>% 
+#   arrange(., avg_rank)
+```
+
+### Create plots illustrating the relationship between AUC/IC50 and gene expression
+* Helps visualise the relationship between these variables.
+```{r}
+# # Creates a boxplot and scatter plot of gene expression vs IC50.
+# ggplot(data=tt3, mapping=aes(x=IC50_Sign,y=Avg_Exp, group=IC50_Sign, fill=IC50_Sign)) +
+#   geom_boxplot()
+# ggplot(data=tt3, mapping=aes(x=IC50_logFC,y=Avg_Exp)) +geom_point()
+# 
+# # Creates a boxplot and scatter plot of gene expression vs AUC.
+# ggplot(data=tt3, mapping=aes(x=AUC_Sign,y=Avg_Exp, group=AUC_Sign, fill=AUC_Sign)) +
+#   geom_boxplot()
+# ggplot(data=tt3, mapping=aes(x=AUC_logFC,y=Avg_Exp)) +geom_point()
+```
+
+## Pathway Analysis
+
+### GoSeq analysis with the top 500 genes
+* "goseq" corrects for gene length, so can be a more effective tool than "ReactomePA".
+```{r, warning=FALSE, message=FALSE}
+# Defines the significant samples. This is based on positive log fold change sign (IC50 sign*AUC sign, to check if directionality per sample is the same for both values), and an absolute log fold change of log2(2) for both IC50 and AUC. Ranks samples based on adjusted p value, averaged between IC50 and AUC.
+SigSamples <- filter(tt3, tt3$logFC_Sign == 1, abs(tt3$IC50_logFC) > log2(2), abs(tt3$AUC_logFC) > log2(2))
+SigSamples <- 
+  SigSamples %>% mutate(., rank_ic50=rank(IC50_Adj_PVal)) %>%
+  mutate(., rank_auc=rank(AUC_Adj_PVal)) %>% 
+  mutate(., avg_rank=0.5*(rank_auc + rank_ic50)) %>% 
+  arrange(., avg_rank)
+
+# Cuts down to the top 2000 significant samples, for pathway analysis, and adds Entrez ID's to these.
+# Test using all samples
+#  <- SigSamples[1:2000,]
+TopXGenes <- as.character(na.omit(SigSamples$Gene_Symbol))
+TopXGenesEntrez <- AnnotationDbi::select(hs, 
+                            keys = TopXGenes,
+                            columns = c("ENTREZID", "SYMBOL"),
+                            keytype = "SYMBOL")
+
+# Adds Entrez ID's to and define non-significant samples.
+tt3Genes <- as.character(na.omit(tt3$Gene_Symbol))
+tt3GenesEntrez <- AnnotationDbi::select(hs, 
+                            keys = tt3Genes,
+                            columns = c("ENTREZID", "SYMBOL"),
+                            keytype = "SYMBOL")
+
+# Gets pathway names and extracts human-only pathways. Also defines the intersect of the significant genes and those that are in reactome.
+rName <- as.list(reactomePATHNAME2ID)
+rName <- rName[grep("Homo sapiens", names(rName))]
+rGenes <- as.list(reactomePATHID2EXTID)
+rGenesPath <- rGenes[match(rName, names(rGenes))]
+rGenesPath <- lapply(rGenesPath, unique)
+rGeneByPath <- as.list(reactomeEXTID2PATHID)
+allGenes <- intersect( tt3GenesEntrez$ENTREZID, unique(unlist(rGenesPath)) )
+length(allGenes)
+sigGenes <- intersect( TopXGenesEntrez$ENTREZID, unique(unlist(rGenesPath)) )
+length(sigGenes)
+plotGenes <- rep(0, length(allGenes))
+names(plotGenes) <- allGenes
+plotGenes[match(sigGenes, names(plotGenes))] <- 1
+
+# Counts the number of significant genes (1's) and non-significant genes (0's). Finds the genes relevant to your dataset.
+table(plotGenes)
+mt <- match(allGenes, names(rGeneByPath))
+rGeneByPath <- lapply(rGeneByPath[mt], function(x) intersect(x, names(rGenesPath)))
+
+# Carries out the goseq analysis: length-corrected, then not length-corrected. The venn diagram shows that most of the pathways are the same between the two. 
+pwf <- nullp(plotGenes, 'hg19', id = "knownGene", plot.fit = TRUE)
+goseqReactome <- goseq(pwf, gene2cat = rGeneByPath)
+goseqReactome$adjP <- p.adjust(goseqReactome$over_represented_pvalue, method = "fdr")
+
+# Filters the length-corrected pathways for significance (threshold of 0.05) and adds pathway information.
+goseqPathways <- filter(goseqReactome, goseqReactome$adjP <1)
+rPathName <- as.list(reactomePATHID2NAME)
+goseqPathways$Pathway <- gsub("Homo sapiens: ", "", rPathName[match(goseqPathways$category, names(rPathName))])
+goseqPathways[,2:6] <- round(as.numeric(unlist(goseqPathways[,2:6])), digits=4)
+SiggoseqPathways <- goseqPathways
+```
+
+### TEST - re-write the above code so that it works for only AUC
+
+```{r, warning=FALSE, message=FALSE}
+# # Defines the significant samples. This is based on positive log fold change sign (IC50 sign*AUC sign), and an absolute log fold change of log2(2) for both IC50 and AUC. Ranks samples based on adjusted p value, averaged between IC50 and AUC.
+# SigSamples <- dplyr::filter(tt3, tt3$logFC_Sign == 1 & abs(tt3$logFC) > log2(2))
+# SigSamples <- arrange(SigSamples, avg_rank)
+# 
+# # Cuts down to the top 2000 significant samples, for pathway analysis, and adds Entrez ID's to these.
+# # Test using all samples
+# #  <- SigSamples[1:2000,]
+# TopXGenes <- as.character(na.omit(SigSamples$symbol))
+# TopXGenesEntrez <- AnnotationDbi::select(hs, 
+#                             keys = TopXGenes,
+#                             columns = c("ENTREZID", "SYMBOL"),
+#                             keytype = "SYMBOL")
+# 
+# # Adds Entrez ID's to and define non-significant samples.
+# tt3Genes <- as.character(na.omit(tt3$symbol))
+# tt3GenesEntrez <- AnnotationDbi::select(hs, 
+#                             keys = tt3Genes,
+#                             columns = c("ENTREZID", "SYMBOL"),
+#                             keytype = "SYMBOL")
+# 
+# # Gets pathway names and extracts human-only pathways. Also defines the intersect of the significant genes and those that are in reactome.
+# rName <- as.list(reactomePATHNAME2ID)
+# rName <- rName[grep("Homo sapiens", names(rName))]
+# rGenes <- as.list(reactomePATHID2EXTID)
+# rGenesPath <- rGenes[match(rName, names(rGenes))]
+# rGenesPath <- lapply(rGenesPath, unique)
+# rGeneByPath <- as.list(reactomeEXTID2PATHID)
+# allGenes <- intersect( tt3GenesEntrez$ENTREZID, unique(unlist(rGenesPath)) )
+# length(allGenes)
+# sigGenes <- intersect( TopXGenesEntrez$ENTREZID, unique(unlist(rGenesPath)) )
+# length(sigGenes)
+# plotGenes <- rep(0, length(allGenes))
+# names(plotGenes) <- allGenes
+# plotGenes[match(sigGenes, names(plotGenes))] <- 1
+# 
+# # Counts the number of significant genes (1's) and non-significant genes (0's). Finds the genes relevant to your dataset.
+# table(plotGenes)
+# mt <- match(allGenes, names(rGeneByPath))
+# rGeneByPath <- lapply(rGeneByPath[mt], function(x) intersect(x, names(rGenesPath)))
+# 
+# # Carries out the goseq analysis: length-corrected, then not length-corrected. The venn diagram shows that most of the pathways are the same between the two. 
+# pwf <- nullp(plotGenes, 'hg19', id = "knownGene", plot.fit = TRUE)
+# goseqReactome <- goseq(pwf, gene2cat = rGeneByPath)
+# goseqReactome$adjP <- p.adjust(goseqReactome$over_represented_pvalue, method = "fdr")
+# 
+# # Filters the length-corrected pathways for significance (threshold of 0.05) and adds pathway information.
+# goseqPathways <- filter(goseqReactome, goseqReactome$adjP <1)
+# rPathName <- as.list(reactomePATHID2NAME)
+# goseqPathways$Pathway <- gsub("Homo sapiens: ", "", rPathName[match(goseqPathways$category, names(rPathName))])
+# goseqPathways[,2:6] <- round(as.numeric(unlist(goseqPathways[,2:6])), digits=4)
+# SiggoseqPathways <- goseqPathways
+# 
+# GeneLabelTool <- dplyr::pull(tt3, symbol)
+# GeneLabelTool <- AnnotationDbi::select(hs,
+#                                        keys = GeneLabelTool,
+#                                        columns = c("ENSEMBL", "ENTREZID", "SYMBOL"),
+#                                        keytype = "SYMBOL")
+```
+
+### Extract genes from GoSeq pathway analysis
+* Adds more information to "goseqPathways", so we can directly identify the genes involved.
+```{r}
+# Creates a tool to easily match genes, between gene symbol, entrez ID, and ensembl ID.
+GeneLabelTool <- dplyr::pull(tt3, Gene_Symbol)
+GeneLabelTool <- AnnotationDbi::select(hs,
+                                       keys = GeneLabelTool,
+                                       columns = c("ENSEMBL", "ENTREZID", "SYMBOL"),
+                                       keytype = "SYMBOL")
+
+# Creates a list of significant genes for each goseq pathway, converts them to symbol ID's. Also does the same for all the genes in each pathway and adds the information to "goseqPathways".
+SiggenesinPaths <-list()
+for(i in 1:nrow(goseqPathways)){
+  SiggenesinPaths[[i]] <- rGenesPath[match(goseqPathways$category[i], names(rGenesPath))] %>% 
+    .[[1]] %>% 
+    intersect(., rownames(pwf)[pwf$DEgenes==1])
+}
+
+genesinPaths <- list()
+for(i in 1:nrow(goseqPathways)){
+  genesinPaths[[i]] <- rGenesPath[match(goseqPathways$category[i], names(rGenesPath))] %>% 
+    .[[1]] %>% 
+    intersect(., rownames(pwf)[pwf$DEgenes==1 | pwf$DEgenes==0])
+}
+SigsymbolsinPaths <- lapply(SiggenesinPaths, function(x) GeneLabelTool$SYMBOL[na.omit(match(x, GeneLabelTool$ENTREZID))] )
+symbolsinPaths <- lapply(genesinPaths, function(x) GeneLabelTool$SYMBOL[na.omit(match(x, GeneLabelTool$ENTREZID))] )
+
+# Save the object that's loaded in to calculate metagenes.
+ensginPaths <- lapply(genesinPaths, function(x) GeneLabelTool$ENSEMBL[na.omit(match(x, GeneLabelTool$ENTREZID))] )
+saveRDS(ensginPaths, file = "Data/Ensembl_ID_in_Paths.Rds")
+
+genesStick <- lapply(symbolsinPaths, function(x) paste0(x, collapse="::", sep="")) %>% unlist()
+goseqPathways$DEgenesInCat <- genesStick
+goseqPathways <- lapply(goseqPathways, gsub, pattern='/', replacement=' ') %>% as.data.frame()
+goseqPathways$Pathway <- lapply(goseqPathways$Pathway, gsub, pattern=':', replacement='-')
+
+# Gives a table with which to identify the genes involved in each pathway, and saves it.
+SiggenesStick <- lapply(SigsymbolsinPaths, function(x) paste0(x, collapse="::", sep="")) %>% unlist()
+SiggoseqPathways$DEgenesInCat <- SiggenesStick
+SiggoseqPathways <- lapply(SiggoseqPathways, gsub, pattern='/', replacement=' ') %>% as.data.frame()
+SiggoseqPathways$Pathway <- lapply(SiggoseqPathways$Pathway, gsub, pattern=':', replacement='-')
+# SiggoseqPathways <- lapply(SiggoseqPathways$Pathway, gsub, pattern='ERBB2:ERBB3', replacement='ERBB2-ERBB3') %>% as.data.frame()
+SiggoseqPathways$Pathway <- as.character(SiggoseqPathways$Pathway)
+write.csv(SiggoseqPathways, file = "Data/goseq_Das_Pathways.csv")
+```
+
+## Heatmap  Construction
+
+### Setup for expression data
+* Creates objects that add more information to the heatmap. Also prints a legend, showing which cell type is associated with which colour on the heatmap.
+```{r}
+# Adds more information to "tissuetoolsort". This tells us which group each cell line belongs to in terms of IC50 (High/Low -log IC50) and AUC (High/Low AUC) response, and CDH1 expression level in these cell lines. These are defined as the top/bottom 50% of the data for AUC/-log IC50, and CDH1- Vs. CDH1+, and prints "tissuetoolsort" inline.
+tissuetoolsort$IC50_Group <- ifelse(dasatinib_sort$LN_IC50 > median(dasatinib_sort$LN_IC50), "High", "Low")
+tissuetoolsort$AUC_Group <- ifelse(dasatinib_sort$AUC > median(dasatinib_sort$AUC), "High", "Low")
+tissuetoolsort$CDH1_Group <- ifelse(dasatinib_sort$CDH1 > 2, "High", "Low")
+tissuetoolsort$CDH1_Level <- dasatinib_sort$CDH1
+tissuetoolsort %>% kable() %>% kable_styling(bootstrap_options = c("striped", "hover", "condensed", font_size=8), fixed_thead=T)
+
+# Creates a color table for the heatmap column bars, which lets us sort by tissue type, AUC, -log IC50, or CDH1.
+cc <- rbind((as.factor(tissuetoolsort$Tissue_Type) %>% as.numeric() %>% rainbow(length(table(.)))[.]),
+            c("darkblue", "blue")[as.numeric(as.factor(tissuetoolsort$IC50_Group))],
+            c("darkblue", "blue")[as.numeric(as.factor(tissuetoolsort$AUC_Group))],
+            # c("orange", "yellow")[as.numeric(as.factor(tissuetoolsort$CDH1_Group))],
+            (as.factor(tissuetoolsort$CDH1_Group) %>% as.numeric() %>% cividis(length(table(.)))[.]),
+            (as.factor(tissuetoolsort$CDH1_Level) %>% as.numeric() %>% cividis(length(table(.)), direction= -1)[.])
+            )
+rownames(cc) <- c("Tissue Type", "-log IC50 Group", "AUC Group", "CDH1 Group", "CDH1 Level")
+
+# Creates an object showing which gene is part of which pathway, for all genes and just the significant genes.
+ensginPaths <- lapply(genesinPaths, function(x) GeneLabelTool$ENSEMBL[na.omit(match(x, GeneLabelTool$ENTREZID))] )
+SigensginPaths <- lapply(SiggenesinPaths, function(x) GeneLabelTool$ENSEMBL[na.omit(match(x, GeneLabelTool$ENTREZID))] )
+
+# Standardises names between "expDat" and "GeneLabelTool" for readability and so the code actually works.
+rownames(expDat_sort) <- strsplit(rownames(expDat_sort),".", fixed=T) %>% lapply(., function(x) x[1]) %>% unlist()
+# Save this to be read into the metagene analysis.
+write.csv(expDat_sort, file = "Data/BRCA_STAD_Das_Expression_Data.csv")#, row.names = rownames(expDat_sort))
+
+# Plots CDH1 expresssion level to identify CDH1- cell lines. 
+ggplot(dasatinib_sort, aes(x="CDH1", y=CDH1, colour=CDH1 > 2)) +
+  ggtitle("CDH1 Expression Level in Cell Lines") + labs(y="CDH1 Log Fold Change in Expression", x=" ") +
+  scale_color_viridis(discrete=TRUE, option="cividis") +
+  geom_beeswarm(show.legend = FALSE)
+```
+
+### Create a heatmap showing the overlap between genes in each pathway
+* This can be used to identify pathways where similar sets of genes are enriched, and the pathways are therefore quite similar.
+```{r}
+sigPathCor <- matrix(0, length(SigsymbolsinPaths), length(SigsymbolsinPaths))
+rownames(sigPathCor) <- colnames(sigPathCor) <- paste0(goseqPathways$Pathway," (", goseqPathways$numDEInCat, ")")
+for(a in 1:length(SigsymbolsinPaths)){
+  for(b in 1:length(SigsymbolsinPaths)){
+    if(a >  b) sigPathCor[a,b] <- length(intersect(SigsymbolsinPaths[[a]], SigsymbolsinPaths[[b]])) / min(length(SigsymbolsinPaths[[a]]), length(SigsymbolsinPaths[[b]]))
+    if(a <= b) sigPathCor[a,b] <- length(intersect(SigsymbolsinPaths[[a]], SigsymbolsinPaths[[b]])) / max(length(SigsymbolsinPaths[[a]]), length(SigsymbolsinPaths[[b]]))
+  }
+}
+```
+
+```{r, fig.height=11.5, fig.width=11}
+cols <- colorRampPalette(c("white", "red"))(n = 50)
+oo <- as.dendrogram(hclust(dist(sigPathCor)))
+heatmap.2(sigPathCor, scale='none', trace='none', col=cols, key=TRUE, 
+          keysize=0.85, mar=c(26,26),cexRow = 0.8, cexCol=0.8,
+          main="Pathway overlap (genes): Dasatinib associated pathways", 
+          Rowv = oo, Colv=oo)
+```
+
+### Create heatmaps for each pathway identified
+* This loop cycles through and creates a heatmap for each pathway, showing all the genes, with expression level and colour coded by significance. Excludes any pathways with only one gene involved.
+```{r, warning=FALSE}
+# colord = order(cc["AUC Group",])
+# for(k in 1:length(ensginPaths)){
+#   # Fetches expression data
+#   pathway_expDat_sort <- subset(expDat_sort, rownames(expDat_sort) %in% ensginPaths[[k]])
+#   rownames(pathway_expDat_sort) <- match(rownames(pathway_expDat_sort), GeneLabelTool$ENSEMBL) %>% 
+#     GeneLabelTool$SYMBOL[.]
+#   zz <- apply(pathway_expDat_sort, 1, scale, scale=TRUE) %>% t()
+#   colnames(zz) <- colnames(pathway_expDat_sort)
+#   
+#   # Order zz in the same order as ensginPaths[[k]]
+#   orderer <- as.vector(symbolsinPaths[[k]])
+#   new_order <- sapply(orderer, function(x,zz){which(rownames(zz) == x)}, zz=zz)
+#   zz <- zz[new_order,]
+#   
+#   # Orders rows and sorts out colours
+#   rowcc <- rep("red2", length(ensginPaths[[k]]))
+#   rowcc[which(ensginPaths[[k]] %in% SigensginPaths[[k]])] = "chartreuse2"
+#   roword <- as.factor(rowcc) %>% as.numeric(.) %>% order(.)
+#   
+#   # Changes row label font size based on how many rows there are, to avoid cluttering
+#   fonthelp <- length(ensginPaths[[k]])
+#   fontdefault <- 0.2 + 1/log10(fonthelp)
+#   l <- ifelse(fonthelp>200, 0.4, fontdefault)
+#   # Standardises extreme values for better imaging, and ensures heat maps aren't created for pathways with only one enriched gene
+#   if(length(ensginPaths[[k]])>1){
+#     zz[zz > 3] <- 3
+#     zz[zz < -3] <- -3
+#     # Creates the heatmaps
+#     pn <- gsub(" ","_",goseqPathways$Pathway[k])
+#     png(paste0("Dasatinib_Pathway_Analysis_CDH1_33/Heatmaps/", pn, "_heatmap.png"), width = 20, height = 20, units = 'in', res = 500)
+#     heatmap.mik(zz[roword,colord], trace='none', scale='none', col=bluered(50), ColSideColors=cc[,colord], Colv=FALSE, RowSideColors=rowcc[roword], Rowv=FALSE, mar=c(4,12), keysize=1, cexRow=l, main=(goseqPathways$Pathway[k]))
+#     legend(0.5,0.97,
+#            c("Breast", "High -log IC50", "High AUC", "High CDH1 (CDH1+)", "Significant", "Stomach", "Low -log IC50", "Low AUC", "Low CDH1 (CDH1-)", "Not Significant"),
+#            fill=c("red","darkblue","darkblue", "#00204DFF" ,"chartreuse2","cyan","blue","blue", "#FFEA46FF", "red2"), border="white", ncol=2)
+#     dev.off()
+#   }
+# }
+```

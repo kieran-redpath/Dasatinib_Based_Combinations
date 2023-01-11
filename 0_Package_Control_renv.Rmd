@@ -1,0 +1,99 @@
+---
+title: "Package_Control_renv"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Get renv working with R 3.6.2
+```{r}
+install.packages("renv", version = "0.9.2")
+```
+
+### Install packages unlikely to be troublemakers but still required (most recent version at 10/10/2022)
+```{r}
+install.packages("data.table")
+
+install.packages("magrittr")
+
+install.packages("ggplot2")
+
+install.packages("tidyverse")
+
+install.packages("ggbeeswarm")
+
+install.packages("dplyr")
+
+install.packages("gplots")
+
+install.packages("knitr")
+
+install.packages("kableExtra")
+
+install.packages("devtools")
+
+install.packages("viridis")
+
+install.packages("evaluate")
+
+install.packages("tibble")
+```
+
+### BiocManager itself isn't causing any problems, but a specific version needs to be installed in order to set package versions
+```{r}
+install.packages("BiocManager")
+
+# Revert Bioconductor to version 3.9
+# BiocManager::install(version = '3.9', update = FALSE)
+
+# Try version 3.10
+BiocManager::install(version = '3.10', update = FALSE)
+```
+
+### Install older version of CePa
+```{r}
+BiocManager::install("Rgraphviz", version = "3.9", update = FALSE)
+require(devtools)
+install_version("CePa", version = "0.7.0", repos = "http://cran.us.r-project.org")
+```
+
+### Install packages that might be responsible for causing problems (version as at May 20, 2021, Bioconductor Release 3.9 for R Version 3.6.2)
+```{r}
+# BiocManager::install("limma", version = "3.9", update = FALSE)
+# 
+# BiocManager::install("edgeR", version = "3.9", update = FALSE)
+# 
+# BiocManager::install("org.Hs.eg.db", version = "3.9", update = FALSE)
+# 
+# BiocManager::install("ReactomePA", version = "3.9", update = FALSE)
+# 
+# BiocManager::install("reactome.db", version = "3.9", update = FALSE)
+
+# Try 3.10
+BiocManager::install("limma", version = "3.10", update = FALSE)
+
+BiocManager::install("edgeR", version = "3.10", update = FALSE)
+
+BiocManager::install("org.Hs.eg.db", version = "3.10", update = FALSE)
+
+BiocManager::install("ReactomePA", version = "3.10", update = FALSE)
+
+BiocManager::install("reactome.db", version = "3.10", update = FALSE)
+
+BiocManager::install("geneLenDataBase", version = "3.10", update = FALSE)
+
+
+
+ ### A few pre-requisites to make goseq work properly
+install.packages("~/Misc/RCurl_1.98-1.8.zip", repos = NULL, type = "win.binary")
+BiocManager::install("geneLenDataBase", version = "3.9", update = FALSE)
+BiocManager::install("goseq", version = "3.9", update = FALSE)
+```
+
+### Load packages
+```{r}
+
+```
+

@@ -1,0 +1,60 @@
+---
+title: "5_PCA_Exploration"
+author: "Kieran Redpath"
+date: "20/04/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# library(limma)
+# library(edgeR)
+# library(data.table)
+# library(magrittr)
+library(ggplot2)
+# library(CePa)
+# library(tibble)
+library(tidyverse)
+# library(ggbeeswarm)
+library(dplyr)
+# library(ReactomePA)
+# library(org.Hs.eg.db)
+# library(reactome.db)
+# library(goseq)
+library(gplots)
+# source('Data/heatmap-mik.R')
+library(knitr)
+# library(kableExtra)
+library(devtools)
+# library(viridis)
+set.seed(42)
+```
+
+```{r}
+GEO_PC1 <- read.csv("PCAExplore/pathMatY_GEO_1.csv", row.names = 1)
+GEO_PC2 <- read.csv("PCAExplore/pathMatY_GEO_2.csv", row.names = 1)
+TCGA_PC1 <- read.csv("PCAExplore/pathMatY_TCGA_1.csv", row.names = 1)
+TCGA_PC2 <- read.csv("PCAExplore/pathMatY_TCGA_2.csv", row.names = 1)
+```
+
+```{r}
+par(mfrow=c(2,2))
+# Plot the correlation between multiplied and not multiplied MetaPathway values.
+for(z in 1:nrow(GEO_PC1)){
+  X <- GEO_PC1[z, ] %>% as.matrix(.) %>% t(.)
+  Y <- GEO_PC2[z, ] %>% as.matrix(.) %>% t(.)
+  
+  print(
+    ggplot(data = NULL, mapping = aes(x = X, y = Y)) +
+      geom_point(colour = "black") +
+      geom_smooth(method = "lm", se = FALSE, colour = "red") +
+      xlab(paste0("PC1 MetaPathway", " ", z)) +
+      ylab(paste0("PC2 MetaPathway", " ", z))
+  )
+}
+```
+
+
