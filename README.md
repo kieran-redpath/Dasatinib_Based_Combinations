@@ -18,9 +18,10 @@ heatmap-mik.R
 
 tcga_gastric_cancer.RData (from the TCGA)
 
-# For Prostate Cancer Analysis: 13059_2007_1735_MOESM3_basal_ESM.csv (from prostate cancer paper, might not be necessary)
+# For Prostate Cancer Analysis:
 
 13059_2007_1735_MOESM4_treated+control_ESM.csv (from prostate cancer paper)
 
-# Final Notes
+# Final Notes:
+
 Some of these are included in Data/ while others were too large and must be required from their sources (eg CCLE and GDSC2 data). GSE data are from https://github.com/mikblack/Gastric_Cancer_Datasets
