@@ -80,17 +80,15 @@ set.seed(42)
 # Try to determine if the problem is in creating the list of enriched pathways (i.e. 1_Dasatinib_Pathway_Analysis.Rmd), or in finding associations (this document)
 # Do this by using the list of pathways that you know gives the right interactions, and seeing if it gives the right results or not.
 
-expDat_Dasatinib <- read.csv(file = "../BRCA_STAD_Das_Expression_Data_Jul_22_2021.csv", row.names = 1)
-GeneLabelToolDasatinib <- read.csv("../Gene_Label_Tool_Jul_22_2021.csv", row.names = 1)
-goseqPathways <- read.csv(file = "../goseq_Das_Pathways_Jul_22_2021.csv", row.names = 1)
-ensginPaths <- readRDS("../Ensembl_ID_in_Paths_Jul_22_2021.Rds")
+# expDat_Dasatinib <- read.csv(file = "../BRCA_STAD_Das_Expression_Data_Jul_22_2021.csv", row.names = 1)
+# GeneLabelToolDasatinib <- read.csv("../Gene_Label_Tool_Jul_22_2021.csv", row.names = 1)
+# XXXgoseqPathways <- read.csv(file = "../goseq_Das_Pathways_Jul_22_2021.csv", row.names = 1)
+# ensginPaths <- readRDS("../Ensembl_ID_in_Paths_Jul_22_2021.Rds")
 
-# Makes some errors - might need to load other stuff in too, like Gene_Label_Tool
-
-# expDat_Dasatinib <- read.csv("Data/BRCA_STAD_Das_Expression_Data.csv", row.names = 1)
-# GeneLabelToolDasatinib <- read.csv("Data/Gene_Label_Tool.csv", row.names = 1)
-# goseqPathways <- read.csv("Data/goseq_Das_Pathways.csv", row.names = 1)
-# ensginPaths <- readRDS("Data/Ensembl_ID_in_Paths.Rds")
+expDat_Dasatinib <- read.csv("Data/BRCA_STAD_Das_Expression_Data.csv", row.names = 1)
+GeneLabelToolDasatinib <- read.csv("Data/Gene_Label_Tool.csv", row.names = 1)
+goseqPathways <- read.csv("Data/goseq_Das_Pathways.csv", row.names = 1)
+ensginPaths <- readRDS("Data/Ensembl_ID_in_Paths.Rds")
 
 # Load raw data, and normalise raw expression data.
 ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
