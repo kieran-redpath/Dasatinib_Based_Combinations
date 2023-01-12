@@ -566,6 +566,7 @@ heatmap.2(sigPathCor, scale='none', trace='none', col=cols, key=TRUE,
 # }
 ```
 
+### WIP at the moment, to be finished after the rest of the code is fixed.
 ### Run negative control to ensure that enriched pathways aren't just showing up by chance.
 * 	Pick a random set of genes and do pathway analysis - do this 100-1000 times, hopefully 1000
 	Pull out P values, save them. Make a distribution of the smallest p value each repeat, and compare to the original pathway p-value. Do the same comparing all the second smallest etc.
@@ -577,32 +578,32 @@ heatmap.2(sigPathCor, scale='none', trace='none', col=cols, key=TRUE,
 	Then plot 1st all together, 2nd all together.
 	Check how many of each 1st are smaller than original.
 ```{r}
-# Create a list in which to keep the adj. P values of 1000 repeats of this
-adjP.c <- list()
-
-for(t in 1:1000){
-
-# Create a random vector of 1395 genes (the same number as in plotGenes) to be called as significant for negative controls.
-ctrlGenes <- sample(allGenes, size = 1395, replace = F)
-# Create plotGenes.c, defining "DE" and "not DE" genes for negative controls.
-plotGenes.c <- rep(0, length(allGenes))
-names(plotGenes.c) <- allGenes
-plotGenes.c[match(ctrlGenes, names(plotGenes.c))] <- 1
-
-# Carries out the goseq analysis. rGeneByPath should be defined earlier and should be identical here.
-pwf.c <- nullp(plotGenes.c, 'hg19', id = "knownGene", plot.fit = TRUE)
-goseqReactome.c <- goseq(pwf.c, gene2cat = rGeneByPath)
-goseqReactome.c$adjP <- p.adjust(goseqReactome.c$over_represented_pvalue, method = "fdr")
-
-
-adjP.c[[t]] <- goseqReactome.c$adjP
-}
-
-
-# Add pathway information - probably unneccesary for this basic comparison, but can be used inside the loop
-goseqPathways.c <- goseqReactome.c
-rPathName <- as.list(reactomePATHID2NAME)
-goseqPathways.c$Pathway <- gsub("Homo sapiens: ", "", rPathName[match(goseqPathways.c$category, names(rPathName))])
-goseqPathways.c[,2:6] <- round(as.numeric(unlist(goseqPathways.c[,2:6])), digits=4)
-SiggoseqPathways.c <- goseqPathways.c
+# # Create a list in which to keep the adj. P values of 1000 repeats of this
+# adjP.c <- list()
+# 
+# for(t in 1:1000){
+# 
+# # Create a random vector of 1395 genes (the same number as in plotGenes) to be called as significant for negative controls.
+# ctrlGenes <- sample(allGenes, size = 1395, replace = F)
+# # Create plotGenes.c, defining "DE" and "not DE" genes for negative controls.
+# plotGenes.c <- rep(0, length(allGenes))
+# names(plotGenes.c) <- allGenes
+# plotGenes.c[match(ctrlGenes, names(plotGenes.c))] <- 1
+# 
+# # Carries out the goseq analysis. rGeneByPath should be defined earlier and should be identical here.
+# pwf.c <- nullp(plotGenes.c, 'hg19', id = "knownGene", plot.fit = FALSE)
+# goseqReactome.c <- goseq(pwf.c, gene2cat = rGeneByPath)
+# goseqReactome.c$adjP <- p.adjust(goseqReactome.c$over_represented_pvalue, method = "fdr")
+# 
+# 
+# adjP.c[[t]] <- goseqReactome.c$adjP
+# }
+# 
+# 
+# # Add pathway information - probably unneccesary for this basic comparison, but can be used inside the loop
+# goseqPathways.c <- goseqReactome.c
+# rPathName <- as.list(reactomePATHID2NAME)
+# goseqPathways.c$Pathway <- gsub("Homo sapiens: ", "", rPathName[match(goseqPathways.c$category, names(rPathName))])
+# goseqPathways.c[,2:6] <- round(as.numeric(unlist(goseqPathways.c[,2:6])), digits=4)
+# SiggoseqPathways.c <- goseqPathways.c
 ```
