@@ -20,6 +20,8 @@ install.packages("magrittr")
 
 install.packages("ggplot2")
 
+install.packages("ggsignif")
+
 install.packages("tidyverse")
 
 install.packages("ggbeeswarm")
@@ -60,18 +62,12 @@ require(devtools)
 install_version("CePa", version = "0.7.0", repos = "http://cran.us.r-project.org")
 ```
 
-### Install packages that might be responsible for causing problems (version as at May 20, 2021, Bioconductor Release 3.9 for R Version 3.6.2)
+### Install Bioconductor packages, which might be responsible for causing problems (version as at May 20, 2021, Bioconductor Release 3.9 for R Version 3.6.2)
 ```{r}
  ### A few pre-requisites to make goseq work properly
 install.packages("~/Misc/RCurl_1.98-1.8.zip", repos = NULL, type = "win.binary")
-BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq"), version = "3.9", update = FALSE, force = TRUE)
+BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq", "hgu133a2.db"), version = "3.9", update = FALSE, force = TRUE)
 
 # Bioconductor release 3.10
-BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq"), version = "3.10", update = FALSE, force = TRUE)
+BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq", "hgu133a2.db"), version = "3.10", update = FALSE, force = TRUE)
 ```
-
-### Load packages
-```{r}
-
-```
-
