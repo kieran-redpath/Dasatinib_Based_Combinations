@@ -48,16 +48,16 @@ install.packages("tibble")
 install.packages("BiocManager")
 
 # Revert Bioconductor to version 3.9
-BiocManager::install(version = '3.9', update = FALSE, force = TRUE)
+# BiocManager::install(version = '3.9', update = FALSE, force = TRUE)
 
 # Try version 3.10
-# BiocManager::install(version = '3.10', update = FALSE, force = TRUE)
+BiocManager::install(version = '3.10', update = FALSE, force = TRUE)
 ```
 
 ### Install older version of CePa
 ```{r}
-BiocManager::install("Rgraphviz", version = "3.9", update = FALSE, force = TRUE)
-# BiocManager::install("Rgraphviz", version = "3.10", update = FALSE, force = TRUE)
+# BiocManager::install("Rgraphviz", version = "3.9", update = FALSE, force = TRUE)
+BiocManager::install("Rgraphviz", version = "3.10", update = FALSE, force = TRUE)
 require(devtools)
 install_version("CePa", version = "0.7.0", repos = "http://cran.us.r-project.org")
 ```
@@ -66,8 +66,8 @@ install_version("CePa", version = "0.7.0", repos = "http://cran.us.r-project.org
 ```{r}
  ### A few pre-requisites to make goseq work properly
 install.packages("~/Misc/RCurl_1.98-1.8.zip", repos = NULL, type = "win.binary")
-BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq", "hgu133a2.db"), version = "3.9", update = FALSE, force = TRUE)
+#   BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq", "hgu133a2.db", "GO.db", "AnnotationDbi"), version = "3.9", update = FALSE, force = TRUE)
 
 # Bioconductor release 3.10
-BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq", "hgu133a2.db"), version = "3.10", update = FALSE, force = TRUE)
+BiocManager::install(c("limma", "edgeR", "org.Hs.eg.db", "ReactomePA", "reactome.db", "geneLenDataBase", "goseq", "hgu133a2.db", "GO.db", "AnnotationDbi"), version = "3.10", update = FALSE, force = TRUE)
 ```

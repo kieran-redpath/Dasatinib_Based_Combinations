@@ -11,13 +11,13 @@
   "Packages": {
     "AnnotationDbi": {
       "Package": "AnnotationDbi",
-      "Version": "1.46.1",
+      "Version": "1.48.0",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/AnnotationDbi",
-      "git_branch": "RELEASE_3_9",
-      "git_last_commit": "ff26091",
-      "git_last_commit_date": "2019-08-20",
-      "Hash": "3e00d5619c01adfe3c18b1b2b7c6f07d",
+      "git_branch": "RELEASE_3_10",
+      "git_last_commit": "e8ca855",
+      "git_last_commit_date": "2019-10-29",
+      "Hash": "c5f3f140470b1941580859d3fc5c6bc0",
       "Requirements": [
         "Biobase",
         "BiocGenerics",
@@ -111,13 +111,13 @@
     },
     "BiocVersion": {
       "Package": "BiocVersion",
-      "Version": "3.9.0",
+      "Version": "3.10.1",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/BiocVersion",
       "git_branch": "master",
-      "git_last_commit": "1adac61",
-      "git_last_commit_date": "2018-10-30",
-      "Hash": "e3095d6b52c23087b931102391b9f7b4",
+      "git_last_commit": "8c298c6",
+      "git_last_commit_date": "2019-06-05",
+      "Hash": "b69e4e634db423b8e6c58103d579ec95",
       "Requirements": []
     },
     "Biostrings": {
@@ -206,9 +206,9 @@
     },
     "GO.db": {
       "Package": "GO.db",
-      "Version": "3.8.2",
+      "Version": "3.10.0",
       "Source": "Bioconductor",
-      "Hash": "11383efa2f698f1d70ed1f4686134801",
+      "Hash": "54a49210c5dd89ac926e12c56273a740",
       "Requirements": [
         "AnnotationDbi"
       ]
@@ -429,13 +429,13 @@
     },
     "ReactomePA": {
       "Package": "ReactomePA",
-      "Version": "1.28.0",
+      "Version": "1.30.0",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/ReactomePA",
-      "git_branch": "RELEASE_3_9",
-      "git_last_commit": "1e12175",
-      "git_last_commit_date": "2019-05-02",
-      "Hash": "533dce21c9b78d0151a0e0c9e7ef914f",
+      "git_branch": "RELEASE_3_10",
+      "git_last_commit": "3c8414c",
+      "git_last_commit_date": "2019-10-29",
+      "Hash": "0129f750fc6783dd8f275597d52aa234",
       "Requirements": [
         "AnnotationDbi",
         "DOSE",
@@ -992,13 +992,13 @@
     },
     "edgeR": {
       "Package": "edgeR",
-      "Version": "3.26.8",
+      "Version": "3.28.1",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/edgeR",
-      "git_branch": "RELEASE_3_9",
-      "git_last_commit": "836809e",
-      "git_last_commit_date": "2019-08-31",
-      "Hash": "eaf78f8ac2a29964631cc3906b7ea161",
+      "git_branch": "RELEASE_3_10",
+      "git_last_commit": "3e0d7a7",
+      "git_last_commit_date": "2020-02-26",
+      "Hash": "89c7b7cf2495fd8a434f6d0b40ec5060",
       "Requirements": [
         "Rcpp",
         "limma",
@@ -1204,13 +1204,13 @@
     },
     "geneLenDataBase": {
       "Package": "geneLenDataBase",
-      "Version": "1.20.0",
+      "Version": "1.22.0",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/geneLenDataBase",
-      "git_branch": "RELEASE_3_9",
-      "git_last_commit": "70a1abe",
-      "git_last_commit_date": "2019-05-02",
-      "Hash": "ed51e05525b8294f43003c69a6951485",
+      "git_branch": "RELEASE_3_10",
+      "git_last_commit": "a90fb8d",
+      "git_last_commit_date": "2019-10-29",
+      "Hash": "bb80156973899cba069687d1a7687e3e",
       "Requirements": [
         "GenomicFeatures",
         "rtracklayer"
@@ -1448,13 +1448,13 @@
     },
     "goseq": {
       "Package": "goseq",
-      "Version": "1.36.0",
+      "Version": "1.38.0",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/goseq",
-      "git_branch": "RELEASE_3_9",
-      "git_last_commit": "26c9f7d",
-      "git_last_commit_date": "2019-05-02",
-      "Hash": "6efa56bd8d2243fe984ece0eb3e335a3",
+      "git_branch": "RELEASE_3_10",
+      "git_last_commit": "525067a",
+      "git_last_commit_date": "2019-10-29",
+      "Hash": "b929fd0784634576abaa11b2cf00b825",
       "Requirements": [
         "AnnotationDbi",
         "BiasedUrn",
@@ -1802,13 +1802,13 @@
     },
     "limma": {
       "Package": "limma",
-      "Version": "3.40.6",
+      "Version": "3.42.2",
       "Source": "Bioconductor",
       "git_url": "https://git.bioconductor.org/packages/limma",
-      "git_branch": "RELEASE_3_9",
-      "git_last_commit": "3ae0767",
-      "git_last_commit_date": "2019-07-26",
-      "Hash": "9ffa273972aa713e69180c719b5d10ef",
+      "git_branch": "RELEASE_3_10",
+      "git_last_commit": "4b763ee",
+      "git_last_commit_date": "2020-02-02",
+      "Hash": "d56e7c663eb11536c78fe2f25d9fa544",
       "Requirements": []
     },
     "locfit": {
@@ -1938,9 +1938,9 @@
     },
     "org.Hs.eg.db": {
       "Package": "org.Hs.eg.db",
-      "Version": "3.8.2",
+      "Version": "3.10.0",
       "Source": "Bioconductor",
-      "Hash": "94d4a579b38aeaa59f104c53a242cca5",
+      "Hash": "5201dd022e5d661d2634c95fee2cea91",
       "Requirements": [
         "AnnotationDbi"
       ]
@@ -2199,9 +2199,9 @@
     },
     "reactome.db": {
       "Package": "reactome.db",
-      "Version": "1.68.0",
+      "Version": "1.70.0",
       "Source": "Bioconductor",
-      "Hash": "4d40e44eb915ef01f3ca98ccce7f25b5",
+      "Hash": "d804ebfc0d58a91a31033e0d301eba09",
       "Requirements": [
         "AnnotationDbi"
       ]
