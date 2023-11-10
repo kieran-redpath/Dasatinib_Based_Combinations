@@ -107,8 +107,21 @@ length(xx$`PI3K AKT Signaling in Cancer`)
 length(yy$`PI3K AKT Signaling in Cancer`)
 intersect(yy$`PI3K AKT Signaling in Cancer`, xx$`PI3K AKT Signaling in Cancer`)
 
-# Look at the overlap in genes 
+# Look at the genes that were only present in the old analysis, not the new (by pathway)
 
+zz <- list()
+
+for(i in 1:length(yy)){
+  pathname <- names(yy[i])
+  
+  z <- setdiff(yy[i], xx[pathname])
+  
+  if(length(z) != 0){
+    zz[i] <- z
+    names(zz)[i] <- pathname
+  }
+  
+}
 ```
 
 
