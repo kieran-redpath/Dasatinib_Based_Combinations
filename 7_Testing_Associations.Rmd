@@ -1,0 +1,114 @@
+---
+title: "Dasatinib Based Combination Therapy for Diffuse Gastric Cancer - Troubleshooting Associations"
+author: "Kieran Redpath"
+date: "19 March 2021"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+> Formatting: Object names in quotations, package names in italics (when possible). Words in \#\# and \#\#\# titles should be capitalised when appropriate. Comments within chunks should be capitalised and use a full stop as a sentence would. Dasatinib should not be capitalised, "MetaPathway" should be written as such. Separated pieces of code should reflect separate functions.
+
+### Load Packages
+```{r, results = "hide", message = FALSE, warning = FALSE}
+# Load packages.
+library(limma)
+library(edgeR)
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(CePa)
+library(tidyverse)
+library(dplyr)
+library(org.Hs.eg.db)
+library(reactome.db)
+library(goseq)
+library(gplots)
+source('Data/heatmap-mik.R')
+library(knitr)
+library(evaluate)
+library(kableExtra)
+library(devtools)
+library(viridis)
+set.seed(42)
+```
+
+### Load Data
+```{r, results = "hide", message = FALSE, warning = FALSE}
+# Load pre-processed data (Created in Pathway_Analysis) to create metagenes.
+####################################################### Experimentation ####################################################### 
+# The problem doesn't appear to be entirely version based, or if it is you're testing the wrong versions
+# Try to determine if the problem is in creating the list of enriched pathways (i.e. 1_Dasatinib_Pathway_Analysis.Rmd), or in finding associations (this document)
+# Do this by using the list of pathways that you know gives the right interactions, and seeing if it gives the right results or not.
+
+expDat_Dasatinib <- read.csv("Data/BRCA_STAD_Das_Expression_Data.csv", row.names = 1)
+GeneLabelToolDasatinib <- read.csv("Data/Gene_Label_Tool.csv", row.names = 1)
+goseqPathways <- read.csv("Data/goseq_Das_Pathways.csv", row.names = 1)
+ensginPaths <- readRDS("Data/Ensembl_ID_in_Paths.Rds")
+
+expDat_Dasatinib_Jul_22 <- read.csv(file = "../BRCA_STAD_Das_Expression_Data_Jul_22_2021.csv", row.names = 1)
+GeneLabelToolDasatinib_Jul_22 <- read.csv("../Gene_Label_Tool_Jul_22_2021.csv", row.names = 1)
+goseqPathways_Jul_22 <- read.csv(file = "../goseq_Das_Pathways_Jul_22_2021.csv", row.names = 1)
+ensginPaths_Jul_22 <- readRDS("../Ensembl_ID_in_Paths_Jul_22_2021.Rds")
+# 
+# # Load raw data, and normalise raw expression data.
+# ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
+# # Remove X's from cell lines that start with a number.
+# colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# # Normalise with the edgeR and limma packages.
+# dge <- DGEList(counts = ccleExpData)
+# dge <- calcNormFactors(dge)
+# dge_voom <- voom(dge, plot = FALSE)
+# expDat <- dge_voom$E
+# 
+# # Create copies of "expDat", to be used later.
+# expDatAll <- expDatRaw <- expDat
+# # Rename expDat so that the cell line names don't include tissue type (for matching purposes).
+# colnames(expDat) <- strsplit(colnames(expDat), "_") %>% 
+#   lapply(., function(x) x[1]) %>% 
+#   unlist()
+# # Load drug data.
+# GDSC2 <- fread("Data/GDSC2_fitted_dose_response_25Feb20.csv", sep= ';')
+# # Load human gene data.
+# hs <- org.Hs.eg.db
+```
+
+## Compare the contents of goseqPathways between old and modern versions
+```{r}
+# The full list of pathways (which I think is what's used for clustering)
+setdiff(goseqPathways$Pathway, goseqPathways_Jul_22$Pathway)
+# 5 pathways are in goseqPathways that aren't in goseqPathways_Jul_22
+
+setdiff(goseqPathways_Jul_22$Pathway, goseqPathways$Pathway)
+# 18 pathways are in goseqPathways_Jul_22 that aren't in goseqPathways 
+
+# Just pathways with adj P < 0.05
+setdiff( goseqPathways_Jul_22$Pathway[1:76], goseqPathways$Pathway[1:74])
+
+# Pull out gene lists as strings
+xx <- list()
+xx <- strsplit(as.character(goseqPathways$DEgenesInCat), split = "::")
+names(xx) <- goseqPathways$Pathway
+
+yy <- list()
+yy <- strsplit(as.character(goseqPathways_Jul_22$DEgenesInCat), split = "::")
+names(yy) <- goseqPathways_Jul_22$Pathway
+
+length(xx$`PI3K AKT Signaling in Cancer`)
+length(yy$`PI3K AKT Signaling in Cancer`)
+intersect(yy$`PI3K AKT Signaling in Cancer`, xx$`PI3K AKT Signaling in Cancer`)
+
+# Look at the overlap in genes 
+
+```
+
+
