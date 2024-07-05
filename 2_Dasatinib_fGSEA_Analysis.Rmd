@@ -36,6 +36,10 @@ hs <- (org.Hs.eg.db)
 ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
 # Remove X's from cell lines that start with a number.
 colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# Immediately remove the TT_OESOPHAGUS column to its alias, T-T_OESOPHAGUS to try and avoid problems later on. This may not work as you'll need to be matching to other objects with different cell line names at some point. It's in the gdsc2 data as T-T
+# This is required to get the more modern code to work right, but it works fine here without it and gives you appropriate/desired results when used with the old sets of output from previous docs.
+# colnames(ccleExpData)[colnames(ccleExpData) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
+
 # Normalise with the edgeR and limma packages.
 dge <- DGEList(counts = ccleExpData)
 dge <- calcNormFactors(dge)
@@ -84,7 +88,7 @@ GeneLabelTool <- na.omit(GeneLabelTool)
 sum(colnames(expDat_sort)==dasatinib_sort$CCLE_Name)
 names(dasatinib_sort)
 
-# Fits the expression data to a linear model.
+# Fits the expression data to a linear model
 group2 <- ifelse(dasatinib_sort$AUC > median(dasatinib_sort$AUC), "High", "Low")
 table(group2)
 boxplot(dasatinib_sort$AUC ~ group2)
@@ -127,7 +131,8 @@ ranks2 <- ranks2[!duplicated(names(ranks2))]
 expDat_Dup <- expDat[ , !duplicated(colnames(expDat))]  
   
 # Carry out gsea analysis.
-fgseaRes <- fgsea(fgseapathways, ranks2, maxSize=500)
+# Note have added code for nperm function which wasn't previously there, and seems to be required in this version of the package (BiocVersion 3.10.1)
+fgseaRes <- fgsea(fgseapathways, ranks2, nperm = 10000, maxSize=500)
 fgseaRes <- fgseaRes[order(padj),]
 ```
 
@@ -179,20 +184,64 @@ order(-NES), pathway]
 
 ### Plot the first couple of pathways as GSEA enrichment plots.
 ```{r}
-# Plot the first pathway.
-plotEnrichment(fgseapathways[["Assembly of collagen fibrils and other multimeric structures"]], ranks2)
-# Plot the second pathway.
-plotEnrichment(fgseapathways[["Cell surface interactions at the vascular wall"]], ranks2)
-# Plot the third pathway.
-plotEnrichment(fgseapathways[["Collagen biosynthesis and modifying enzymes"]], ranks2)
-# Plot the very last pathway for comparison.
-plotEnrichment(fgseapathways[["Manipulation of host energy metabolism"]], ranks2)
+# # Plot the first pathway.
+# plotEnrichment(fgseapathways[["Assembly of collagen fibrils and other multimeric structures"]], ranks2)
+# # Plot the second pathway.
+# plotEnrichment(fgseapathways[["Cell surface interactions at the vascular wall"]], ranks2)
+# # Plot the third pathway.
+# plotEnrichment(fgseapathways[["Collagen biosynthesis and modifying enzymes"]], ranks2)
+# # Plot the very last pathway for comparison.
+# plotEnrichment(fgseapathways[["Manipulation of host energy metabolism"]], ranks2)
 
 # Plot the table - not really sure what's happening here or what I'm supposed to be seeing
-topPathways <- fgseaRes[head(order(padj), n = 20)][order(NES), pathway]
-pdf(file = "Dasatinib_fGSEA_Analysis_Output/Other/fgseaOutput.pdf", width = 11, height = 25)
-plotGseaTable(fgseapathways[topPathways], ranks2, fgseaRes, gseaParam=0.5, colwidths = c(5, 3, 0.8, 1.2, 1.2), render = TRUE)
-dev.off()
+# topPathways <- fgseaRes[head(order(padj), n = 20)][order(NES), pathway]
+# pdf(file = "Dasatinib_fGSEA_Analysis_Output/Other/fgseaOutput.pdf", width = 11, height = 25)
+# plotGseaTable(fgseapathways[topPathways], ranks2, fgseaRes, gseaParam=0.5, colwidths = c(5, 3, 0.8, 1.2, 1.2), render = TRUE)
+# dev.off()
+
+# Save the full list of significant fgsea pathways and the collapsed pathways
+leadingEdge.vector <- list()
+for(i in 1:nrow(sigfgseaRes)){
+leadingEdge.vector[[i]] <- unlist(sigfgseaRes$leadingEdge[i])
+sigfgseaRes$leadingEdge[i] <- leadingEdge.vector[[i]] %>% paste0(., collapse = "::")
+}
+
+# Convert leadingEdge.vector (which isn't actually a vector) into an equivalent to genesinPaths and ensginPaths
+genesinPathsfgsea <- leadingEdge.vector
+names(genesinPathsfgsea) <- sigfgseaRes$pathway
+
+rName <- as.list(reactomePATHNAME2ID)
+rName <- rName[grep("Homo sapiens", names(rName))]
+# This is all reactome paths
+rGenes <- as.list(reactomePATHID2EXTID)
+# This narrows it down to human paths
+rGenesPath <- rGenes[match(rName, names(rGenes))]
+rGenesPath <- lapply(rGenesPath, unique)
+# Now convert to ensembl genes and readable pathway names, and cut down to those in the sigfgseaRes data
+ensginPathsfgsea <- lapply(rGenesPath, function(x) GeneLabelTool$ENSEMBL[na.omit(match(x, GeneLabelTool$ENTREZID))])
+# Map reactome IDs to pathway names
+rPathIDtoName <- as.data.frame(reactomePATHID2NAME)
+names(ensginPathsfgsea) <- lapply(names(ensginPathsfgsea), function(x) rPathIDtoName$path_name[na.omit(match(x, rPathIDtoName$DB_ID))])
+names(ensginPathsfgsea) <- gsub("Homo sapiens: ", "", names(ensginPathsfgsea))
+# Match to the relevant enriched pathways
+ensginPathsfgsea <- ensginPathsfgsea[names(ensginPathsfgsea) %in% sigfgseaRes$pathway]
+
+# This seems to work to convert the whole thing to characters
+sigfgseaRes[, (names(sigfgseaRes)) := lapply(.SD, as.character)]
+
+# Check types of columns
+str(sigfgseaRes)
+
+# Collapse to parent pathway terms
+sigfgseaResCollapsed = sigfgseaRes %>%
+  dplyr::filter(pathway %in% mainPathways)
+
+write.csv(sigfgseaRes, file = "Data/fgsea_Das_Pathways.csv")
+write.csv(sigfgseaResCollapsed, file = "Data/fgsea_Das_Pathways_Collapsed.csv")
+
+
+# Save the object that's later loaded in to calculate metagenes.
+saveRDS(ensginPathsfgsea, file = "Data/Ensembl_ID_in_Paths_fgsea.Rds")
 ```
 
 

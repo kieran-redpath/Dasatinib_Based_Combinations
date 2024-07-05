@@ -64,6 +64,10 @@ ensginPaths_Jul_22 <- readRDS("../Ensembl_ID_in_Paths_Jul_22_2021.Rds")
 # ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
 # # Remove X's from cell lines that start with a number.
 # colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# Remove X's from cell lines that start with a number.
+# colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# # Immediately remove the TT_OESOPHAGUS column to its alias, T-T_OESOPHAGUS to try and avoid problems later on. This may not work as you'll need to be matching to other objects with different cell line names at some point. It's in the gdsc2 data as T-T
+# colnames(ccleExpData)[colnames(ccleExpData) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
 # # Normalise with the edgeR and limma packages.
 # dge <- DGEList(counts = ccleExpData)
 # dge <- calcNormFactors(dge)

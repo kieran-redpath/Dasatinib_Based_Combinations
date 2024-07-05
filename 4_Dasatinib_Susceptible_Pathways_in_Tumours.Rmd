@@ -52,6 +52,12 @@ hs <- org.Hs.eg.db
 
 # Loads expression data from the CCLE, and normalises it with "voom".
 ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
+# Remove X's from cell lines that start with a number.
+colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# Immediately remove the TT_OESOPHAGUS column to its alias, T-T_OESOPHAGUS to try and avoid problems later on. This may not work as you'll need to be matching to other objects with different cell line names at some point. It's in the gdsc2 data as T-T
+# This is required to get the more modern code to work right, but it works fine here without it and gives you appropriate/desired results when used with the old sets of output from previous docs.
+# colnames(ccleExpData)[colnames(ccleExpData) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
+
 logExpDat <- log(ccleExpData + 0.5)
 dge <- DGEList(counts=ccleExpData)
 dge <- calcNormFactors(dge)

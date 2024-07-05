@@ -22,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 * __Metagenes:__
 + After cutting down the full list of cell lines to only those that had both GDSC and CCLE data, a matrix of the strength of the correlation between a drug and a pathway metagene (creating with an SVD to reduce the dimensions of every single gene involved in the metagene) was created. The pathways analysed were specifically those that were found to be involved in dasatinib response from previous research. This helped identify drugs that are strongly linked to dasatinib target pathways.
-+ The strongest drug/pathway correlations (Spearman > 0.4 I think) were taken and plotted in heatmaps, to identify which genes in these pathways were over/under-expressed in cells that had increased response (high AUC). However, this created too many separate graphs to really be of use. In addition, only some of the pathways studied were statistically significantly linked to dasatinib.
++ The strongest drug/pathway correlations (Spearman > cor.thresh I think) were taken and plotted in heatmaps, to identify which genes in these pathways were over/under-expressed in cells that had increased response (high AUC). However, this created too many separate graphs to really be of use. In addition, only some of the pathways studied were statistically significantly linked to dasatinib.
 
 * __MetaPathways:__
 + To solve these problems, MetaPathways were created. If a metagene represents the expression of all the genes in a pathway, a MetaPathway represents all the metagene values from a set of clustered pathways (4 MetaPathways represent the entire set of 54 pathways). This also means that very similar pathways are now represented by the same value. Similarly to earlier, a matrix of drug/MetaPathway correlations was created to find the strongest interactions.
@@ -90,10 +90,19 @@ ensginPaths <- readRDS("../Ensembl_ID_in_Paths_Jul_22_2021.Rds")
 # goseqPathways <- read.csv("Data/goseq_Das_Pathways.csv", row.names = 1)
 # ensginPaths <- readRDS("Data/Ensembl_ID_in_Paths.Rds")
 
+# Another alternative option: Run through with goseqPathways and ensginPaths filtered for significance
+# names(ensginPaths) <- goseqPathways$Pathway
+# goseqPathways <- goseqPathways[goseqPathways$adjP < 0.05,]
+# ensginPaths <- ensginPaths[names(ensginPaths) %in% goseqPathways$Pathway]
+
 # Load raw data, and normalise raw expression data.
 ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
 # Remove X's from cell lines that start with a number.
 colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# Immediately remove the TT_OESOPHAGUS column to its alias, T-T_OESOPHAGUS to try and avoid problems later on. This may not work as you'll need to be matching to other objects with different cell line names at some point. It's in the gdsc2 data as T-T
+# This is required to get the more modern code to work right, but it works fine here without it and gives you appropriate/desired results when used with the old sets of output from previous docs.
+# colnames(ccleExpData)[colnames(ccleExpData) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
+
 # Normalise with the edgeR and limma packages.
 dge <- DGEList(counts = ccleExpData)
 dge <- calcNormFactors(dge)
@@ -234,6 +243,7 @@ pathMatY <- pathMatY[, !duplicated(colnames(pathMatY))]
 
 
 ### Create a Matrix of Drug by Sample for Area Under the Curve (AUC) Data
+# This is all of the data in the GDSC (192 drugs, 809 cell lines)
 ```{r}
 # Ensure that no drugs or cell lines have multiple entries.
 AUCSamplesY <- matrix(0,length(unique(GDSC2$DRUG_NAME)), length(unique(GDSC2$CELL_LINE_NAME)))
@@ -270,30 +280,33 @@ pathMatSubsetY <- pathMatSubsetY[,oo]
 # Create a drug by pathway correlation matrix.
 drugMetageneCorY <- cor(t(pathMatSubsetY), t(AUCSamplesSubsetY), method = "spearman") %>% na.omit(.)
 write.csv(drugMetageneCorY, file = "Dasatinib_Metagenes_Output/Other/Drug_Metagene_Correlations.csv", sep = ",", row.names = TRUE, col.names = TRUE)
-
 ```
 
 ### Check the Correlations, and Determine a Threshold for Significant Interactions
 ```{r}
 # How many drug/pathway interactions satisfy a given cutoff? This will be reflected in the number of heatmaps created.
-sum(abs(drugMetageneCorY)>0.4)
-sum(abs(drugMetageneCorY)>0.5)
+for(i in seq(0.1, 1.0, by = 0.1)){
+sum(abs(drugMetageneCorY)>i) %>% print()
+}
+
+# Determine the correlation threshold used throughout the rest of this document
+cor.thresh <- 0.4
 
 # Which rows have the most of these values, and more than 0?
-PathDrugsNo <- rowSums(abs(drugMetageneCorY)>0.4) %>% .[.>0] %>% sort(., decreasing = TRUE) %>% as.data.frame(.)
-colnames(PathDrugsNo) <- "No. of Significantly Associated Drugs"
+PathDrugsNo <- rowSums(abs(drugMetageneCorY)>cor.thresh) %>% .[.>0] %>% sort(., decreasing = TRUE) %>% as.data.frame(.)
+colnames(PathDrugsNo) <- "No. of Strongly Associated Drugs"
 kable(PathDrugsNo) %>% kable_styling(bootstrap_options = c("striped", "condensed", font_size=8), fixed_thead=T) %>% save_kable("Dasatinib_Metagenes_Output/Other/PathDrugsNo.png")
 # Which columns have the most of these values, and more than 0?
-DrugPathsNo <- colSums(abs(drugMetageneCorY)>0.4) %>% .[.>0] %>% sort(., decreasing = TRUE) %>% as.data.frame(.)
-colnames(DrugPathsNo) <- "No. of Significantly Associated Reactome Pathways"
+DrugPathsNo <- colSums(abs(drugMetageneCorY)>cor.thresh) %>% .[.>0] %>% sort(., decreasing = TRUE) %>% as.data.frame(.)
+colnames(DrugPathsNo) <- "No. of Strongly Associated Reactome Pathways"
 kable(DrugPathsNo) %>% kable_styling(bootstrap_options = c("striped", "condensed", font_size=8), fixed_thead=T) %>% save_kable("Dasatinib_Metagenes_Output/Other/DrugPathsNo.png")
-# Create a new matrix, replacing every value which isn't greater than abs(0.4) with an NA, to make it more clear which correlations are interesting.
+# Create a new matrix, replacing every value which isn't greater than abs(cor.thresh) with an NA, to make it more clear which correlations are interesting.
 SigDMCorY <- drugMetageneCorY
-SigDMCorY[abs(SigDMCorY)<0.4] <- NA
+SigDMCorY[abs(SigDMCorY)<cor.thresh] <- NA
 
 # I think this is going from 383 pathways to 149 because it's cutting out those that don't have a strong correlation, but still using all pathways not just significant ones.
-# Make the loop only work on strong correlations (>0.4) between a drug and a pathway.
-SigPaths <- rowSums(abs(drugMetageneCorY)>0.4) %>% sort(., decreasing = TRUE) %>% .[.>0]
+# Make the loop only work on strong correlations (>cor.thresh) between a drug and a pathway.
+SigPaths <- rowSums(abs(drugMetageneCorY)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0]
 ```
 
 ### Create Heatmaps for Pathway Metagenes
@@ -324,7 +337,7 @@ for(p in 1:nrow(pathMatY)){
     
     ## Create an object that shows which drugs are significant, and is re-created for each pathway.
     aa <- subset(drugMetageneCorY, rownames(drugMetageneCorY) == pathname)
-    SigDrugs <- colSums(abs(aa)>0.4) %>% sort(., decreasing = TRUE) %>% .[.>0]
+    SigDrugs <- colSums(abs(aa)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0]
     
     for(q in 1:length(SigDrugs)){
       # Loop through the drugs involved with this pathway, and finds an AUC for each.
@@ -361,6 +374,8 @@ for(p in 1:nrow(pathMatY)){
 ```
 
 ### Investigate Which Pathways Cluster Together
+# Ignore the in-chunk explanation, it's not really accurate. This still uses all pathways from goseq with adj-p-value < 1 (not just the ones statistically significant from goseq or gsea), but only clusters the ones with a correlation above the threshold (which is probably a low medium positive? )
+
 ```{r, message = FALSE, warning = FALSE}
 # Create a list of the genes in each significant pathway.
 names(ensginPaths) <- goseqPathways$Pathway
@@ -493,6 +508,13 @@ M.pathMatSubsetY <- M.pathMatSubsetY[,M.oo]
 # Create a drug by MetaPathway correlation matrix.
 M.drugMetageneCorY <- cor(t(M.pathMatSubsetY), t(M.AUCSamplesSubsetY), method = "spearman") %>% na.omit(.)
 write.csv(M.drugMetageneCorY, file = "Dasatinib_Metagenes_Output/Other/Drug_Metapathway_Correlations.csv", sep = ",", row.names = TRUE, col.names = TRUE)
+
+# How many drug/metapathway correlations satisfy a given threshold?
+for(i in seq(0.1, 1.0, by = 0.1)){
+sum(abs(M.drugMetageneCorY)>i) %>% print()
+}
+
+M.cor.thresh <-  0.4
 ```
 
 ### Compare Metapathways to Drugs - as PNGs
@@ -521,7 +543,7 @@ for(p in 1:length(MetaPathways)){
   
   # Create an object that notes which drugs are significant, and is re-created for each pathway.
   M.aa <- subset(M.drugMetageneCorY, rownames(M.drugMetageneCorY) == mpathname)
-  M.SigDrugs <- colSums(abs(M.aa)>0.4) %>% sort(., decreasing = TRUE) %>% .[.>0]
+  M.SigDrugs <- colSums(abs(M.aa)>M.cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0]
   
   for(q in 1:length(M.SigDrugs)){
     if(length(M.SigDrugs > 0)){
@@ -630,7 +652,7 @@ for(p in 1:length(MetaPathways)){
 
 <!--   # Create an object that notes which drugs are significant, and is re-created for each pathway. -->
 <!--   M.aa <- subset(M.drugMetageneCorY, rownames(M.drugMetageneCorY) == mpathname) -->
-<!--   M.SigDrugs <- colSums(abs(M.aa)>0.4) %>% sort(., decreasing = TRUE) %>% .[.>0] -->
+<!--   M.SigDrugs <- colSums(abs(M.aa)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0] -->
 
 <!--   for(q in 1:length(M.SigDrugs)){ -->
 <!--     if(length(M.SigDrugs > 0)){ -->
@@ -832,7 +854,7 @@ for(p in 1:length(MetaPathways)){
   
   # Create an object that says which drugs are significant, and is re-created for each pathway.
   T.aa <- subset(T.drugMetageneCorY, rownames(T.drugMetageneCorY) == mpathname)
-  T.SigDrugs <- colSums(abs(T.aa)>0.4) %>% sort(., decreasing = TRUE) %>% .[.>0]
+  T.SigDrugs <- colSums(abs(T.aa)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0]
   
   for(q in 1:length(T.SigDrugs)){
     if(length(T.SigDrugs > 0)){
@@ -935,7 +957,7 @@ for(p in 1:length(MetaPathways)){
 
 <!--   # Create an object that says which drugs are significant, and is re-created for each pathway. -->
 <!--   T.aa <- subset(T.drugMetageneCorY, rownames(T.drugMetageneCorY) == mpathname) -->
-<!--   T.SigDrugs <- colSums(abs(T.aa)>0.4) %>% sort(., decreasing = TRUE) %>% .[.>0] -->
+<!--   T.SigDrugs <- colSums(abs(T.aa)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0] -->
 
 <!--   for(q in 1:length(T.SigDrugs)){ -->
 <!--     if(length(T.SigDrugs > 0)){ -->
@@ -1016,24 +1038,24 @@ for(p in 1:length(MetaPathways)){
 <!-- } -->
 <!-- ``` -->
 
-### Explore the Correlation Between Values With and Without Matrix Multiplication
-```{r, message = FALSE}
-# Set the parameters for this chunk.
-par(mfrow=c(2,2))
-# Plot the correlation between multiplied and not multiplied MetaPathway values.
-for(z in 1:nrow(M.pathMatY)){
-  X <- T.pathMatY[z, T.cell.lines] %>% as.matrix(.) %>% t(.)
-  Y <- M.pathMatY[z, M.cell.lines] %>% as.matrix(.) %>% t(.)
-  
-  print(
-    ggplot(data = NULL, mapping = aes(x = X, y = Y)) +
-      geom_point(colour = "black") +
-      geom_smooth(method = "lm", se = TRUE, colour = "red") +
-      xlab(paste0("Standard MetaPathway", " ", z)) +
-      ylab(paste0("Matrix Multiplied MetaPathway", " ", z))
-  )
-}
-```
+<!-- ### Explore the Correlation Between Values With and Without Matrix Multiplication. Currently does not work -->
+<!-- ```{r, message = FALSE} -->
+<!-- # Set the parameters for this chunk. -->
+<!-- par(mfrow=c(2,2)) -->
+<!-- # Plot the correlation between multiplied and not multiplied MetaPathway values. -->
+<!-- for(z in 1:nrow(M.pathMatY)){ -->
+<!--   X <- T.pathMatY[z, T.cell.lines] %>% as.matrix(.) %>% t(.) -->
+<!--   Y <- M.pathMatY[z, M.cell.lines] %>% as.matrix(.) %>% t(.) -->
+
+<!--   print( -->
+<!--     ggplot(data = NULL, mapping = aes(x = X, y = Y)) + -->
+<!--       geom_point(colour = "black") + -->
+<!--       geom_smooth(method = "lm", se = TRUE, colour = "red") + -->
+<!--       xlab(paste0("Standard MetaPathway", " ", z)) + -->
+<!--       ylab(paste0("Matrix Multiplied MetaPathway", " ", z)) -->
+<!--   ) -->
+<!-- } -->
+<!-- ``` -->
 
 ```{r, echo = FALSE, eval = FALSE}
 # The code used to incorporate a PNG of a pathway into the markdown document when it's knit

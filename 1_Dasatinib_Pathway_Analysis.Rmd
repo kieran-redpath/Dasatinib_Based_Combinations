@@ -78,6 +78,12 @@ hs <- org.Hs.eg.db
 
 # Loads expression data from the CCLE, and normalises it with "voom".
 ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
+# Remove X's from cell lines that start with a number.
+colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
+# Immediately remove the TT_OESOPHAGUS column to its alias, T-T_OESOPHAGUS to try and avoid problems later on. This may not work as you'll need to be matching to other objects with different cell line names at some point. It's in the gdsc2 data as T-T
+# This is required to get the more modern code to work right, but it works fine here without it and gives you appropriate/desired results when used with the old sets of output from previous docs.
+# colnames(ccleExpData)[colnames(ccleExpData) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
+
 logExpDat <- log(ccleExpData + 0.5)
 dge <- DGEList(counts=ccleExpData)
 dge <- calcNormFactors(dge)
@@ -85,8 +91,8 @@ dge_voom <- voom(dge, plot=TRUE)
 expDat <- dge_voom$E
 expDatsplit <- expDat
 
-# Loads the GDSC dataset, and filters for cell lines that have data for dasatinib. 
-GDSC2 <- fread('Data/GDSC2_fitted_dose_response_25Feb20.csv', sep = ';')
+# Loads the GDSC dataset, and filters for cell lines that have data for dasatinib.
+GDSC2 <- fread('Data/GDSC2_fitted_dose_response_15Oct19.csv', sep = ';')
 dim(GDSC2)
 dasatinib <- GDSC2 %>% filter(., DRUG_NAME=="Dasatinib")
 colnames(expDat) <- strsplit(colnames(expDat), "_") %>% 
@@ -238,13 +244,15 @@ ggplot(df2, aes(x=AUC, y=topGene)) + geom_boxplot()
 * We do see more overlap than we would expect by chance, indicating that the relationship is important, even though the results may not appear signficant.
 ```{r}
 # # Shows the overlap between the top 500 samples for each variable.
-# venn(list(ic50=tt$rn[1:500], auc=tt2$rn[1:500]))
-# overlap <- c()
-# sz <- c(50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000, 10000, 20000, 40000, 50000)
-# for(i in 1:length(sz)) overlap[i] <- length(intersect(tt$rn[1:sz[i]], tt2$rn[1:sz[i]]))
-# expect <- sz^2/nrow(tt) 
-# plot(sz, expect, type='b', ylim=c(0,max(overlap)))
-# points(sz, overlap, type='b', col='red')
+venn(list(ic50=tt$rn[1:500], auc=tt2$rn[1:500]))
+overlap <- c()
+sz <- c(50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000, 10000, 20000, 40000, 50000)
+for(i in 1:length(sz)) overlap[i] <- length(intersect(tt$rn[1:sz[i]], tt2$rn[1:sz[i]]))
+expect <- sz^2/nrow(tt)
+plot(sz, expect, type='b', ylim=c(0,max(overlap)))
+points(sz, overlap, type='b', col='red')
+
+
 ```
 
 ## Processing IC50 and AUC Differential Expression Data
@@ -280,18 +288,38 @@ tt3 <-
 #   arrange(., avg_rank)
 ```
 
-### Create plots illustrating the relationship between AUC/IC50 and gene expression
-* Helps visualise the relationship between these variables.
+### TEST: Work out if the GDSC data is negative logged or not based on the data available in the online portal
 ```{r}
-# # Creates a boxplot and scatter plot of gene expression vs IC50.
-# ggplot(data=tt3, mapping=aes(x=IC50_Sign,y=Avg_Exp, group=IC50_Sign, fill=IC50_Sign)) +
-#   geom_boxplot()
-# ggplot(data=tt3, mapping=aes(x=IC50_logFC,y=Avg_Exp)) +geom_point()
-# 
-# # Creates a boxplot and scatter plot of gene expression vs AUC.
-# ggplot(data=tt3, mapping=aes(x=AUC_Sign,y=Avg_Exp, group=AUC_Sign, fill=AUC_Sign)) +
-#   geom_boxplot()
-# ggplot(data=tt3, mapping=aes(x=AUC_logFC,y=Avg_Exp)) +geom_point()
+# A quick analysis. Define IC50s according to the values in the database portal for the top 5 LCML cell lines
+IC50tests <- c("JURL-MK1" = 0.000313, "LAMA-84" = 0.000257, "MEG-01" = 0.000176, "KU812" = 0.000191, "CML-T1" = 0.000613)
+
+# In the downloaded dataset, the column is titled "LN_IC50"
+for(i in 1:length(IC50tests)){
+  log(IC50tests[i]) %>% print(.)
+}
+
+IC50tests[i]
+
+# Can use exp() to reverse log()
+exp(-8.069)
+
+# The calculated log values seem pretty close to the ones in the downloaded dataset, if not exactly the same. However, the AUC values are also a little bit different in this version compared to online. Compared to the latest version of the dataset available to download (27 Oct 23), they're identical to the one calculated by the log of the database portal value.
+
+# Great! Looks like the GDSC is correctly labelled and these values are standard natural logs. You should make sure that no code incorrectly assumes that they aren't.
+```
+
+### Create plots illustrating the relationship between AUC/IC50 and gene expression
+* Helps visualise the relationship between these variables. Tells you what a positive vs negative log fold change means
+```{r}
+# Creates a boxplot and scatter plot of gene expression vs IC50.
+ggplot(data=tt3, mapping=aes(x=IC50_Sign,y=Avg_Exp, group=IC50_Sign, fill=IC50_Sign)) +
+  geom_boxplot()
+ggplot(data=tt3, mapping=aes(x=IC50_logFC,y=Avg_Exp)) +geom_point()
+
+# Creates a boxplot and scatter plot of gene expression vs AUC.
+ggplot(data=tt3, mapping=aes(x=AUC_Sign,y=Avg_Exp, group=AUC_Sign, fill=AUC_Sign)) +
+  geom_boxplot()
+ggplot(data=tt3, mapping=aes(x=AUC_logFC,y=Avg_Exp)) +geom_point()
 ```
 
 ## Pathway Analysis
@@ -309,7 +337,7 @@ SigSamples <-
 
 # Cuts down to the top 2000 significant samples, for pathway analysis, and adds Entrez ID's to these.
 # Test using all samples
-#  <- SigSamples[1:2000,]
+# SigSamples <- SigSamples[1:2000,]
 TopXGenes <- as.character(na.omit(SigSamples$Gene_Symbol))
 TopXGenesEntrez <- AnnotationDbi::select(hs, 
                             keys = TopXGenes,
@@ -420,6 +448,7 @@ SiggoseqPathways <- goseqPathways
 
 ### Extract genes from GoSeq pathway analysis
 * Adds more information to "goseqPathways", so we can directly identify the genes involved.
+* Creates a list of significant genes for each goseq pathway, converts them to symbol ID's. Also does the same for all the genes in each pathway and adds the information to "goseqPathways". i.e. siggoseqpathways = overrepresented genes in paths (numDEInCat), goseqpathways = all genes in paths (numInCat)
 ```{r}
 # Creates a tool to easily match genes, between gene symbol, entrez ID, and ensembl ID.
 GeneLabelTool <- dplyr::pull(tt3, Gene_Symbol)
@@ -504,6 +533,7 @@ ggplot(dasatinib_sort, aes(x="CDH1", y=CDH1, colour=CDH1 > 2)) +
 
 ### Create a heatmap showing the overlap between genes in each pathway
 * This can be used to identify pathways where similar sets of genes are enriched, and the pathways are therefore quite similar.
+* something similar can be achieved using something that collapses pathways, like the function in fgsea
 ```{r}
 sigPathCor <- matrix(0, length(SigsymbolsinPaths), length(SigsymbolsinPaths))
 rownames(sigPathCor) <- colnames(sigPathCor) <- paste0(goseqPathways$Pathway," (", goseqPathways$numDEInCat, ")")
