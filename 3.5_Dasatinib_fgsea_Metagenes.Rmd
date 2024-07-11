@@ -325,79 +325,79 @@ SigDMCorY[abs(SigDMCorY)<cor.thresh] <- NA
 SigPaths <- rowSums(abs(drugMetageneCorY)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0]
 ```
 
-### Create Heatmaps for Pathway Metagenes
-# Not sure why but this won't save every png, it gets stuck at some point
-```{r, warning = FALSE, message = FALSE}
-for(p in 1:nrow(pathMatY)){
-  # Define which pathway is being worked on.
-  pathname <- rownames(pathMatY)[p]
-  pn <- gsub(" ", "_", pathname)
-  # Create "xx".
-  pathway_expDat_Dasatinib <- subset(expDat_Dasatinib, rownames(expDat_Dasatinib) %in% ensginPaths[[p]])
-  ############################################################################## New code at 12/10/2022 because a gene name couldn't be found in GeneLabelTool for some reason
-  pathway_expDat_Dasatinib <- subset(pathway_expDat_Dasatinib, rownames(pathway_expDat_Dasatinib) %in% GeneLabelTool$ENSEMBL)
+<!-- ### Create Heatmaps for Pathway Metagenes -->
+<!-- # Not sure why but this won't save every png, it gets stuck at some point -->
+<!-- ```{r, warning = FALSE, message = FALSE} -->
+<!-- for(p in 1:nrow(pathMatY)){ -->
+<!--   # Define which pathway is being worked on. -->
+<!--   pathname <- rownames(pathMatY)[p] -->
+<!--   pn <- gsub(" ", "_", pathname) -->
+<!--   # Create "xx". -->
+<!--   pathway_expDat_Dasatinib <- subset(expDat_Dasatinib, rownames(expDat_Dasatinib) %in% ensginPaths[[p]]) -->
+<!--   ############################################################################## New code at 12/10/2022 because a gene name couldn't be found in GeneLabelTool for some reason -->
+<!--   pathway_expDat_Dasatinib <- subset(pathway_expDat_Dasatinib, rownames(pathway_expDat_Dasatinib) %in% GeneLabelTool$ENSEMBL) -->
 
-    # New code 04/07/22 to remove two identical row names. Two different ENSG ID's map to the same gene symbol? HLA-DQA1
-  # Identify duplicates
- dups <- match(rownames(pathway_expDat_Dasatinib), GeneLabelTool$ENSEMBL) %>% 
-    GeneLabelTool$SYMBOL[.] %>% duplicated()
- # Make vector of gene symbols to be rownames
-  newrownames <- match(rownames(pathway_expDat_Dasatinib), GeneLabelTool$ENSEMBL) %>% 
-    GeneLabelTool$SYMBOL[.]
-  # Filter matrix to exclude rows with duplicate rownames and rename them
-  pathway_expDat_Dasatinib <- pathway_expDat_Dasatinib[dups == FALSE,]
-  rownames(pathway_expDat_Dasatinib) <- newrownames[dups == FALSE]
-    
-  # Continue, ignoring duplicate gene  
-  xx <- apply(pathway_expDat_Dasatinib, 1, scale, scale = TRUE) %>% t()
-  colnames(xx) <- colnames(pathway_expDat_Dasatinib)
-  
-  if(rownames(pathMatY)[p] %in% names(SigPaths)){
-    # Subset "expDatAll" so it only contains the genes found in "xx".
-    expDatAllY <- subset(expDatAll, rownames(expDatAll) %in% rownames(xx))
-    # Cut down on extreme values and scales the data.
-    yy <- apply(expDatAllY, 1, scale, scale = TRUE) %>% t()
-    colnames(yy) <- colnames(expDatAllY)
-    yy[yy > 3] <- 3
-    yy[yy < -3] <- -3
-    
-    ## Create an object that shows which drugs are significant, and is re-created for each pathway.
-    aa <- subset(drugMetageneCorY, rownames(drugMetageneCorY) == pathname)
-    SigDrugs <- colSums(abs(aa)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0]
-    
-    for(q in 1:length(SigDrugs)){
-      # Loop through the drugs involved with this pathway, and finds an AUC for each.
-      drugname <- names(SigDrugs)[q]
-      dn <- gsub(" ", "_", drugname)
-      drugAUC <- subset(AUCSamplesSubsetY, rownames(AUCSamplesSubsetY) == drugname)
-      # Create a matrix/row to order cell lines by AUC.
-      expressioncols <- matrix((as.factor(drugAUC) %>% as.numeric() %>% cividis(length(table(.)), direction = 1)[.]), nrow = 1)
-      rownames(expressioncols) <- ""
-      # Make R and heatmap.mik behave better.
-      white <- matrix(rep("white") , nrow = 1, ncol = ncol(expressioncols))
-      rownames(white) <- ""
-      cc <- rbind(white, expressioncols)
-      # Order the columns by AUC for the given drug.
-      colord <- order(drugAUC)
-      # Create heatmaps and save them as pngs.
-      png(paste0("Dasatinib_fgsea_Metagenes_Output/Metagene_Heatmaps/", pn, "_", dn, "_heatmap.png"), width = 2000, height = 2000)
-      heatmap.mik(yy[ , colord],
-                  trace = 'none',
-                  scale = 'none',
-                  col = bluered(50),
-                  ColSideColors = cc[ , colord],
-                  Colv = FALSE,
-                  mar = c(4,12),
-                  keysize = 1, cexRow = 32/nrow(yy)
-      )
-      # Add an AUC legend and larger title.
-      legend(x = 0.5, y = 0.9, legend = c("High AUC", "Low AUC"), fill = c("#FFEA46FF", "#00204DFF"), cex = 3)
-      title(paste(pathname, "-", drugname), cex.main = 3)
-      dev.off()
-    }
-  }  
-}
-```
+<!--     # New code 04/07/22 to remove two identical row names. Two different ENSG ID's map to the same gene symbol? HLA-DQA1 -->
+<!--   # Identify duplicates -->
+<!--  dups <- match(rownames(pathway_expDat_Dasatinib), GeneLabelTool$ENSEMBL) %>%  -->
+<!--     GeneLabelTool$SYMBOL[.] %>% duplicated() -->
+<!--  # Make vector of gene symbols to be rownames -->
+<!--   newrownames <- match(rownames(pathway_expDat_Dasatinib), GeneLabelTool$ENSEMBL) %>%  -->
+<!--     GeneLabelTool$SYMBOL[.] -->
+<!--   # Filter matrix to exclude rows with duplicate rownames and rename them -->
+<!--   pathway_expDat_Dasatinib <- pathway_expDat_Dasatinib[dups == FALSE,] -->
+<!--   rownames(pathway_expDat_Dasatinib) <- newrownames[dups == FALSE] -->
+
+<!--   # Continue, ignoring duplicate gene   -->
+<!--   xx <- apply(pathway_expDat_Dasatinib, 1, scale, scale = TRUE) %>% t() -->
+<!--   colnames(xx) <- colnames(pathway_expDat_Dasatinib) -->
+
+<!--   if(rownames(pathMatY)[p] %in% names(SigPaths)){ -->
+<!--     # Subset "expDatAll" so it only contains the genes found in "xx". -->
+<!--     expDatAllY <- subset(expDatAll, rownames(expDatAll) %in% rownames(xx)) -->
+<!--     # Cut down on extreme values and scales the data. -->
+<!--     yy <- apply(expDatAllY, 1, scale, scale = TRUE) %>% t() -->
+<!--     colnames(yy) <- colnames(expDatAllY) -->
+<!--     yy[yy > 3] <- 3 -->
+<!--     yy[yy < -3] <- -3 -->
+
+<!--     ## Create an object that shows which drugs are significant, and is re-created for each pathway. -->
+<!--     aa <- subset(drugMetageneCorY, rownames(drugMetageneCorY) == pathname) -->
+<!--     SigDrugs <- colSums(abs(aa)>cor.thresh) %>% sort(., decreasing = TRUE) %>% .[.>0] -->
+
+<!--     for(q in 1:length(SigDrugs)){ -->
+<!--       # Loop through the drugs involved with this pathway, and finds an AUC for each. -->
+<!--       drugname <- names(SigDrugs)[q] -->
+<!--       dn <- gsub(" ", "_", drugname) -->
+<!--       drugAUC <- subset(AUCSamplesSubsetY, rownames(AUCSamplesSubsetY) == drugname) -->
+<!--       # Create a matrix/row to order cell lines by AUC. -->
+<!--       expressioncols <- matrix((as.factor(drugAUC) %>% as.numeric() %>% cividis(length(table(.)), direction = 1)[.]), nrow = 1) -->
+<!--       rownames(expressioncols) <- "" -->
+<!--       # Make R and heatmap.mik behave better. -->
+<!--       white <- matrix(rep("white") , nrow = 1, ncol = ncol(expressioncols)) -->
+<!--       rownames(white) <- "" -->
+<!--       cc <- rbind(white, expressioncols) -->
+<!--       # Order the columns by AUC for the given drug. -->
+<!--       colord <- order(drugAUC) -->
+<!--       # Create heatmaps and save them as pngs. -->
+<!--       png(paste0("Dasatinib_fgsea_Metagenes_Output/Metagene_Heatmaps/", pn, "_", dn, "_heatmap.png"), width = 2000, height = 2000) -->
+<!--       heatmap.mik(yy[ , colord], -->
+<!--                   trace = 'none', -->
+<!--                   scale = 'none', -->
+<!--                   col = bluered(50), -->
+<!--                   ColSideColors = cc[ , colord], -->
+<!--                   Colv = FALSE, -->
+<!--                   mar = c(4,12), -->
+<!--                   keysize = 1, cexRow = 32/nrow(yy) -->
+<!--       ) -->
+<!--       # Add an AUC legend and larger title. -->
+<!--       legend(x = 0.5, y = 0.9, legend = c("High AUC", "Low AUC"), fill = c("#FFEA46FF", "#00204DFF"), cex = 3) -->
+<!--       title(paste(pathname, "-", drugname), cex.main = 3) -->
+<!--       dev.off() -->
+<!--     } -->
+<!--   }   -->
+<!-- } -->
+<!-- ``` -->
 
 ### Investigate Which Pathways Cluster Together
 # Ignore the in-chunk explanation, it's not really accurate. Now we're using significant fgsea pathway results, but not clustered
