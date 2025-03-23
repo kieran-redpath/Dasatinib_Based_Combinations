@@ -1,0 +1,77 @@
+"","Pathway","No. of In-group Genes in Pathway","Total No. of Genes in Pathway","Adjusted P-value"
+"1","Extracellular matrix organization",120,297,0
+"2","Collagen formation",48,90,0
+"3","Degradation of the extracellular matrix",57,138,0
+"4","Collagen biosynthesis and modifying enzymes",37,67,0
+"5","Assembly of collagen fibrils and other multimeric structures",35,61,0
+"6","Collagen chain trimerization",29,44,0
+"7","Laminin interactions",23,30,0
+"8","Non-integrin membrane-ECM interactions",33,59,0
+"9","Integrin cell surface interactions",39,83,0
+"10","ECM proteoglycans",37,76,0
+"11","Elastic fibre formation",26,45,0
+"12","GPCR ligand binding",104,448,0
+"13","MET activates PTK2 signaling",20,30,0
+"14","Collagen degradation",29,62,0
+"15","Regulation of Insulin-like Growth Factor (IGF) transport and uptake by Insulin-like Growth Factor Binding Proteins (IGFBPs)",43,125,0
+"16","Cell surface interactions at the vascular wall",45,136,0
+"17","Molecules associated with elastic fibres",21,38,0
+"18","Hemostasis",131,606,0
+"19","Post-translational protein phosphorylation",38,108,0
+"20","MET promotes cell motility",21,41,0
+"21","Class A 1 (Rhodopsin-like receptors)",72,317,0
+"22","NCAM1 interactions",20,42,0
+"23","Crosslinking of collagen fibrils",12,18,1e-04
+"24","Anchoring fibril formation",11,15,1e-04
+"25","G alpha (q) signalling events",54,214,1e-04
+"26","Muscle contraction",52,196,1e-04
+"27","Syndecan interactions",15,27,1e-04
+"28","Defective B3GALTL causes Peters-plus syndrome (PpS)",17,36,3e-04
+"29","Interleukin-10 signaling",17,41,3e-04
+"30","O-glycosylation of TSR domain-containing proteins",17,37,4e-04
+"31","Cell junction organization",29,90,5e-04
+"32","O-linked glycosylation",33,109,9e-04
+"33","Platelet activation, signaling and aggregation",59,258,0.0019
+"34","Diseases associated with O-glycosylation of proteins",23,67,0.0024
+"35","NCAM signaling for neurite out-growth",22,63,0.0027
+"36","Dissolution of Fibrin Clot",8,13,0.0044
+"37","Signal Transduction",415,2695,0.0049
+"38","Constitutive Signaling by Aberrant PI3K in Cancer",23,75,0.0063
+"39","Class B 2 (Secretin family receptors)",26,94,0.0064
+"40","Cell-Cell communication",34,128,0.0071
+"41","Peptide ligand-binding receptors",41,187,0.0071
+"42","Interleukin-4 and Interleukin-13 signaling",29,108,0.0077
+"43","L1CAM interactions",32,117,0.0077
+"44","Gap junction assembly",13,34,0.0104
+"45","Type I hemidesmosome assembly",7,11,0.0126
+"46","Neuronal System",83,407,0.0127
+"47","TFAP2 (AP-2) family regulates transcription of growth factors and their receptors",8,15,0.0133
+"48","TRP channels",12,28,0.0133
+"49","Antagonism of Activin by Follistatin",4,4,0.0149
+"50","Phase 0 - rapid depolarisation",13,34,0.0204
+"51","Cardiac conduction",32,128,0.0223
+"52","Post-translational modification- synthesis of GPI-anchored proteins",23,88,0.0244
+"53","Nervous system development",104,570,0.0244
+"54","Signaling by GPCR",175,1128,0.0308
+"55","Gap junction trafficking and regulation",15,47,0.0321
+"56","Thyroxine biosynthesis",6,10,0.0327
+"57","Transcriptional regulation by the AP-2 (TFAP2) family of transcription factors",13,38,0.0332
+"58","Stimuli-sensing channels",28,108,0.0332
+"59","G alpha (z) signalling events",15,47,0.0382
+"60","Transport of connexons to the plasma membrane",8,18,0.0389
+"61","Signaling by PDGF",18,58,0.0389
+"62","PI5P, PP2A and IER3 Regulate PI3K AKT Signaling",26,102,0.0389
+"63","G alpha (i) signalling events",72,388,0.0392
+"64","Metabolism of amine-derived hormones",8,18,0.0398
+"65","Axon guidance",98,545,0.0402
+"66","Diseases of glycosylation",34,142,0.0402
+"67","GABA B receptor activation",14,43,0.0402
+"68","Activation of GABAB receptors",14,43,0.0402
+"69","Signaling by MET",22,79,0.0421
+"70","Inwardly rectifying K+ channels",12,35,0.0435
+"71","Gap junction trafficking",14,45,0.0444
+"72","Negative regulation of the PI3K AKT network",27,109,0.0444
+"73","Potassium Channels",26,103,0.0444
+"74","Ion channel transport",41,185,0.0444
+"75","Smooth Muscle Contraction",13,40,0.0444
+"76","Lysosphingolipid and LPA receptors",7,14,0.0444

@@ -1,7 +1,7 @@
 ---
-title: "Dasatinib_fGSEA_Analysis"
+title: "Dasatinib GSEA Analysis"
 author: "Kieran Redpath"
-date: "19 March 2021"
+date: "23 March 2025"
 output:
   html_document:
     theme: cosmo
@@ -36,10 +36,6 @@ hs <- (org.Hs.eg.db)
 ccleExpData <- read.gct('Data/CCLE_RNAseq_genes_counts_20180929.gct')
 # Remove X's from cell lines that start with a number.
 colnames(ccleExpData) <- sub("^X", "", colnames(ccleExpData))
-# Immediately remove the TT_OESOPHAGUS column to its alias, T-T_OESOPHAGUS to try and avoid problems later on. This may not work as you'll need to be matching to other objects with different cell line names at some point. It's in the gdsc2 data as T-T
-# This is required to get the more modern code to work right, but it works fine here without it and gives you appropriate/desired results when used with the old sets of output from previous docs.
-# colnames(ccleExpData)[colnames(ccleExpData) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
-
 # Normalise with the edgeR and limma packages.
 dge <- DGEList(counts = ccleExpData)
 dge <- calcNormFactors(dge)
@@ -71,6 +67,8 @@ dasatinib_sort <- dasatinib_sort[ dasatinib_sort$AUC < quantile(dasatinib_sort$A
 dasatinib_sort$CDH1 <- expDat_sort %>% as.data.frame() %>% dplyr::select(., which(colnames(.) %in% dasatinib_sort$CCLE_Name)) %>%  .["ENSG00000039068.14",] %>% as.vector() %>% t()
 expDat_sort <- expDat_sort %>% subset(., select=which(colnames(expDat_sort) %in% dasatinib_sort$CCLE_Name))
 
+# Remove cell line that didn't exist previously
+expDat_sort <- expDat_sort[,!colnames(expDat_sort) %in% "2313287"]
 
 # Gene label tool to convert gene ID's.
 GeneLabelTool <- strsplit(rownames(expDatRaw), '\\.') %>% 
@@ -81,6 +79,10 @@ GeneLabelTool <- AnnotationDbi::select(hs,
                                        columns = c("ENSEMBL", "ENTREZID", "SYMBOL"),
                                        keytype = "ENSEMBL")
 GeneLabelTool <- na.omit(GeneLabelTool)
+
+# Remove cell line that didn't exist previously
+expDat_sort <- expDat_sort[,!colnames(expDat_sort) %in% "2313287"]
+dasatinib_sort <- dasatinib_sort[dasatinib_sort$CCLE_Name != "2313287",]
 ```
 ### Manage existing data
 ```{r}
@@ -131,7 +133,6 @@ ranks2 <- ranks2[!duplicated(names(ranks2))]
 expDat_Dup <- expDat[ , !duplicated(colnames(expDat))]  
   
 # Carry out gsea analysis.
-# Note have added code for nperm function which wasn't previously there, and seems to be required in this version of the package (BiocVersion 3.10.1)
 fgseaRes <- fgsea(fgseapathways, ranks2, nperm = 10000, maxSize=500)
 fgseaRes <- fgseaRes[order(padj),]
 ```
@@ -142,20 +143,11 @@ fgseaRes <- fgseaRes[order(padj),]
 goseqPathways <- read.csv("Data/goseq_Das_Pathways.csv", row.names = 1)
 
 # Compare the top 100 pathways between goseq and gsea analysis.
-# intersect(fgseaRes$pathway[1:100], goseqPathways$Pathway[1:100])
 intersect(fgseaRes$pathway[1:100], goseqPathways$Pathway[1:100]) %>% length(.)
-# 39 of which overlap (with current lists).
-
-# Returns the position in the second argument of the values in the first argument.
-# match(goseqPathways$Pathway[1:100], fgseaRes$pathway[1:100])
 
 # Compare all of the pathways shared between goseq and gsea analysis.
-# intersect(fgseaRes$pathway, goseqPathways$Pathway)
 intersect(fgseaRes$pathway, goseqPathways$Pathway) %>% length(.)
-# 349 of which overlap (with current lists).
 ```
-
-There isn't the craziest amount of overlap (especially in the top 100), especially when you you look at the positions of the goseqPathways in the fgseaRes pathways.
 
 ### Look at the overlap between significant pathways
 ```{r}
@@ -167,8 +159,6 @@ nrow(siggoseqPathways)
 
 intersect(sigfgseaRes$pathway, siggoseqPathways$Pathway)
 intersect(sigfgseaRes$pathway, siggoseqPathways$Pathway) %>% length(.)
-# 51 of these pathways overlap (with all  SigGenes, where there's only 76 from goseq anyway).
-# 27 of these pathways overlap (with only 2000 SigGenes, where there's only 28 from goseq anyway).
 ```
 
 ### Try collapsing pathways so there's less overlap between them for analysis.
@@ -184,21 +174,6 @@ order(-NES), pathway]
 
 ### Plot the first couple of pathways as GSEA enrichment plots.
 ```{r}
-# # Plot the first pathway.
-# plotEnrichment(fgseapathways[["Assembly of collagen fibrils and other multimeric structures"]], ranks2)
-# # Plot the second pathway.
-# plotEnrichment(fgseapathways[["Cell surface interactions at the vascular wall"]], ranks2)
-# # Plot the third pathway.
-# plotEnrichment(fgseapathways[["Collagen biosynthesis and modifying enzymes"]], ranks2)
-# # Plot the very last pathway for comparison.
-# plotEnrichment(fgseapathways[["Manipulation of host energy metabolism"]], ranks2)
-
-# Plot the table - not really sure what's happening here or what I'm supposed to be seeing
-# topPathways <- fgseaRes[head(order(padj), n = 20)][order(NES), pathway]
-# pdf(file = "Dasatinib_fGSEA_Analysis_Output/Other/fgseaOutput.pdf", width = 11, height = 25)
-# plotGseaTable(fgseapathways[topPathways], ranks2, fgseaRes, gseaParam=0.5, colwidths = c(5, 3, 0.8, 1.2, 1.2), render = TRUE)
-# dev.off()
-
 # Save the full list of significant fgsea pathways and the collapsed pathways
 leadingEdge.vector <- list()
 for(i in 1:nrow(sigfgseaRes)){
@@ -236,13 +211,10 @@ str(sigfgseaRes)
 sigfgseaResCollapsed = sigfgseaRes %>%
   dplyr::filter(pathway %in% mainPathways)
 
-write.csv(sigfgseaRes, file = "Data/fgsea_Das_Pathways.csv")
-write.csv(sigfgseaResCollapsed, file = "Data/fgsea_Das_Pathways_Collapsed.csv")
+write.csv(sigfgseaRes, file = "Data_fgsea_tt2/fgsea_Das_Pathways.csv")
+write.csv(sigfgseaResCollapsed, file = "Data_fgsea_tt2/fgsea_Das_Pathways_Collapsed.csv")
 
 
 # Save the object that's later loaded in to calculate metagenes.
-saveRDS(ensginPathsfgsea, file = "Data/Ensembl_ID_in_Paths_fgsea.Rds")
+saveRDS(ensginPathsfgsea, file = "Data_fgsea_tt2/Ensembl_ID_in_Paths_fgsea.Rds")
 ```
-
-
-
