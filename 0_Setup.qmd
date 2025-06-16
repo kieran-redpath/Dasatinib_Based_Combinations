@@ -1,0 +1,198 @@
+---
+title: "Setup"
+author: "Kieran Redpath"
+format: html
+editor: source
+theme: cosmo
+---
+
+## Summary
++ Loads and normalizes gene expression data from the CCLE.
++ Loads and processes drug response data from the GDSC.
++ Filters these data to the relevant information for this project.
++ Saves these objects as .rds files for later use.
+
+### Load packages
+```{r}
+#| results: hide
+#| warning: false
+#| message: false
+#| echo: false
+
+library(limma)
+library(edgeR)
+library(data.table)
+library(magrittr)
+library(ggplot2)
+library(CePa)
+library(tidyverse)
+library(ggbeeswarm)
+library(dplyr)
+library(ReactomePA)
+library(org.Hs.eg.db)
+library(reactome.db)
+library(goseq)
+library(gplots)
+source('data/heatmap-mik.R')
+library(knitr)
+library(kableExtra)
+library(devtools)
+library(viridis)
+library(openxlsx)
+set.seed(42)
+```
+
+### Load CCLE gene expression data
+```{r}
+# Load Homo sapiens gene data (including Entrez ID's).
+hs <- org.Hs.eg.db
+
+# Load expression data from the CCLE, available here: https://depmap.org/portal/data_page/?tab=allData
+CCLE <- read.gct("data/raw/CCLE_RNAseq_genes_counts_20180929.gct")
+# Remove X's introduced by R for cell lines that start with a number, but not those that don't.
+colnames(CCLE) <- sub("^X(\\d+)", "\\1", colnames(CCLE))
+# Convert gene names to stable Ensembl IDs by removing version numbers.
+rownames(CCLE) <- sub("\\..*", "", rownames(CCLE))
+# Normalise CCLE counts using the limma voom method.
+dge <- DGEList(counts = CCLE)
+dge <- calcNormFactors(dge)
+voom_dge <- voom(dge, plot = TRUE)
+voom_CCLE <- voom_dge$E
+
+# Tidy up the environment.
+rm(list = c("dge", "voom_dge"))
+```
+
+### Load GDSC2 drug response data
+```{r}
+# Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
+# Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
+GDSC2 <- fread("data/raw/GDSC2_fitted_dose_response_25Feb20.csv", sep= ';')
+
+# Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
+# Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
+# GDSC2 <- read.xlsx("data/raw/GDSC2_fitted_dose_response_27Oct23.xlsx")
+```
+
+### Format data
+```{r}
+#| warning: false
+# Standardize CCLE and GDSC2 cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774.
+# CCLE:
+colnames(voom_CCLE)[colnames(voom_CCLE) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
+# Isolate cell line and tissue labels for later indexing.
+split_cell_line_tissues <- colnames(voom_CCLE) %>% strsplit(., "_")
+colnames(voom_CCLE) <- strsplit(colnames(voom_CCLE), "_") %>% 
+  lapply(., function(x) x[1]) %>% 
+  unlist()
+# GDSC2:
+GDSC2$CELL_LINE_NAME <- ifelse(
+  GDSC2$CELL_LINE_NAME == "T-T", "T-T", # if
+  gsub("-", "", GDSC2$CELL_LINE_NAME, fixed = TRUE) # else
+)
+
+# Extract dasatinib response data from GDSC2
+dasatinib_GDSC2 <- filter(GDSC2, DRUG_NAME == "Dasatinib")
+
+# Filter datasets for common cell lines.
+common_lines <- intersect(dasatinib_GDSC2$CELL_LINE_NAME,colnames(voom_CCLE))
+match_voom_CCLE <- match(common_lines, colnames(voom_CCLE))
+common_voom_CCLE <- voom_CCLE[ , na.omit(match_voom_CCLE)]
+match_dasatinib_GDSC2 <- match(common_lines, dasatinib_GDSC2$CELL_LINE_NAME)
+common_dasatinib_GDSC2 <- dasatinib_GDSC2[na.omit(match_dasatinib_GDSC2),]
+colnames(common_dasatinib_GDSC2)[5] <- "CCLE_Name"
+
+# Tidy up the environment.
+rm(list = c("common_lines", "match_voom_CCLE", "match_dasatinib_GDSC2"))
+```
+
+### Filter data
+```{r}
+# Filter CCLE and GDSC2 data for BRCA and STAD cell lines with data for dasatinib.
+# Also filters to the cell lines with the highest and lowest tertile of AUC for dasatinib.
+# GDSC (also adds a column for CDH1 expression data):
+sort_dasatinib_GDSC2 <- common_dasatinib_GDSC2 %>%
+  filter(TCGA_DESC %in% c("BRCA", "STAD")) %>%
+  filter(AUC < quantile(AUC, 0.33) | AUC > quantile(AUC, 0.66))
+sort_dasatinib_GDSC2$CDH1 <- common_voom_CCLE %>% as.data.frame() %>%
+  dplyr::select(any_of(sort_dasatinib_GDSC2$CCLE_Name)) %>%
+  dplyr::slice(match("ENSG00000039068.14", rownames(.))) %>%
+  as.vector() %>%
+  t()
+
+# CCLE:
+sort_voom_CCLE <- common_voom_CCLE %>%
+  as.data.frame() %>%
+  dplyr::select(any_of(sort_dasatinib_GDSC2$CCLE_Name)) %>% 
+  as.matrix()
+
+# Tidy up the environment.
+rm(list = c("common_voom_CCLE", "common_dasatinib_GDSC2"))
+```
+
+### Index cell lines to tissues
+```{r}
+# Create a tool to find tissue type based on cell line name or vice versa.
+tissue_tool <- data.frame(
+  Cell_Line = sapply(split_cell_line_tissues, `[[`, 1),
+  Tissue_Type = sapply(split_cell_line_tissues, function(x) paste(x[-1], collapse = "_")),
+  stringsAsFactors = FALSE)
+tissue_tool <- tissue_tool %>% mutate(
+  Tissue_Type = Tissue_Type %>%
+    str_remove_all("c") %>%
+    str_replace_all("[[:punct:]]", "_"))
+
+# Create another tool for the same purpose, but only including cell lines of interest.
+sort_tissue_tool <- tissue_tool %>% filter(Tissue_Type %in% c("BREAST", "STOMACH"))
+common_lines <- intersect(colnames(sort_voom_CCLE), sort_tissue_tool$Cell_Line)
+sort_tissue_tool <- sort_tissue_tool %>%
+  filter(Cell_Line %in% common_lines) %>%
+  arrange(factor(Cell_Line, levels = common_lines))
+
+
+# Tidy up the environment.
+rm(list = c("split_cell_line_tissues", "common_lines"))
+```
+
+### Index alternative names for all genes in the dataset.
+```{r}
+# Create the gene name reference tool.
+gene_tool <- rownames(CCLE) %>%
+  AnnotationDbi::select(hs,
+                        keys = .,
+                        columns = c("ENSEMBL", "ENTREZID", "SYMBOL"),
+                        keytype = "ENSEMBL")
+```
+
+### Save pre-processed objects as .rds files
+```{r}
+# GDSC2
+saveRDS(GDSC2, file = "data/GDSC2.rds")
+
+# dasatinib_GDSC2
+saveRDS(dasatinib_GDSC2, file = "data/dasatinib_GDSC2.rds")
+
+# sort_dasatinib_GDSC2
+saveRDS(sort_dasatinib_GDSC2, file = "data/sort_dasatinib_GDSC2.rds")
+
+# voom_CCLE
+saveRDS(voom_CCLE, file = "data/voom_CCLE.rds")
+
+# sort_voom_CCLE
+saveRDS(sort_voom_CCLE, file = "data/sort_voom_CCLE.rds")
+
+# tissue_tool
+saveRDS(tissue_tool, file = "data/tissue_tool.rds")
+
+# sort_tissue_tool
+saveRDS(sort_tissue_tool, file = "data/sort_tissue_tool.rds")
+
+# gene_tool
+saveRDS(gene_tool, file = "data/gene_tool.rds")
+```
+
+### Tidy up the environment and R memory
+```{r}
+rm(list = ls())
+gc()
+```

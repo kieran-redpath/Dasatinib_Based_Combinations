@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.1.189">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Kieran Redpath">
+
+<title>Setup</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="0_Setup_files/libs/clipboard/clipboard.min.js"></script>
+<script src="0_Setup_files/libs/quarto-html/quarto.js"></script>
+<script src="0_Setup_files/libs/quarto-html/popper.min.js"></script>
+<script src="0_Setup_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="0_Setup_files/libs/quarto-html/anchor.min.js"></script>
+<link href="0_Setup_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="0_Setup_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="0_Setup_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="0_Setup_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="0_Setup_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Setup</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Kieran Redpath </p>
+          </div>
+  </div>
+    
+    
+  </div>
+  
+
+</header>
+
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<ul>
+<li>Loads and normalises gene expression data from the CCLE.</li>
+<li>Loads and processes drug response data from the GDSC.</li>
+<li>Filters these data to the relevant information for this project.</li>
+<li>Saves these objects as .rds files for later use.</li>
+</ul>
+<section id="load-packages" class="level3">
+<h3 class="anchored" data-anchor-id="load-packages">Load packages</h3>
+<div class="cell">
+<div class="cell-output cell-output-stderr">
+<pre><code>── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ lubridate 1.9.4     ✔ tibble    3.2.1
+✔ purrr     1.0.4     ✔ tidyr     1.3.1
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::between()     masks data.table::between()
+✖ tidyr::extract()     masks magrittr::extract()
+✖ dplyr::filter()      masks stats::filter()
+✖ dplyr::first()       masks data.table::first()
+✖ lubridate::hour()    masks data.table::hour()
+✖ lubridate::isoweek() masks data.table::isoweek()
+✖ dplyr::lag()         masks stats::lag()
+✖ dplyr::last()        masks data.table::last()
+✖ lubridate::mday()    masks data.table::mday()
+✖ lubridate::minute()  masks data.table::minute()
+✖ lubridate::month()   masks data.table::month()
+✖ lubridate::quarter() masks data.table::quarter()
+✖ lubridate::second()  masks data.table::second()
+✖ purrr::set_names()   masks magrittr::set_names()
+✖ tidyr::spread()      masks CePa::spread()
+✖ purrr::transpose()   masks data.table::transpose()
+✖ lubridate::wday()    masks data.table::wday()
+✖ lubridate::week()    masks data.table::week()
+✖ lubridate::yday()    masks data.table::yday()
+✖ lubridate::year()    masks data.table::year()
+ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors
+
+
+Registered S3 methods overwritten by 'treeio':
+  method              from    
+  MRCA.phylo          tidytree
+  MRCA.treedata       tidytree
+  Nnode.treedata      tidytree
+  Ntip.treedata       tidytree
+  ancestor.phylo      tidytree
+  ancestor.treedata   tidytree
+  child.phylo         tidytree
+  child.treedata      tidytree
+  full_join.phylo     tidytree
+  full_join.treedata  tidytree
+  groupClade.phylo    tidytree
+  groupClade.treedata tidytree
+  groupOTU.phylo      tidytree
+  groupOTU.treedata   tidytree
+  is.rooted.treedata  tidytree
+  nodeid.phylo        tidytree
+  nodeid.treedata     tidytree
+  nodelab.phylo       tidytree
+  nodelab.treedata    tidytree
+  offspring.phylo     tidytree
+  offspring.treedata  tidytree
+  parent.phylo        tidytree
+  parent.treedata     tidytree
+  root.treedata       tidytree
+  rootnode.phylo      tidytree
+  sibling.phylo       tidytree
+
+ReactomePA v1.42.0  For help: https://yulab-smu.top/biomedical-knowledge-mining-book/
+
+If you use ReactomePA in published research, please cite:
+Guangchuang Yu, Qing-Yu He. ReactomePA: an R/Bioconductor package for reactome pathway analysis and visualization. Molecular BioSystems 2016, 12(2):477-479
+
+Loading required package: AnnotationDbi
+
+Loading required package: stats4
+
+Loading required package: BiocGenerics
+
+
+Attaching package: 'BiocGenerics'
+
+
+The following objects are masked from 'package:lubridate':
+
+    intersect, setdiff, union
+
+
+The following objects are masked from 'package:dplyr':
+
+    combine, intersect, setdiff, union
+
+
+The following object is masked from 'package:limma':
+
+    plotMA
+
+
+The following objects are masked from 'package:stats':
+
+    IQR, mad, sd, var, xtabs
+
+
+The following objects are masked from 'package:base':
+
+    anyDuplicated, aperm, append, as.data.frame, basename, cbind,
+    colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
+    get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply,
+    match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
+    Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort,
+    table, tapply, union, unique, unsplit, which.max, which.min
+
+
+Loading required package: Biobase
+
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+
+Loading required package: IRanges
+
+Loading required package: S4Vectors
+
+
+Attaching package: 'S4Vectors'
+
+
+The following objects are masked from 'package:lubridate':
+
+    second, second&lt;-
+
+
+The following objects are masked from 'package:dplyr':
+
+    first, rename
+
+
+The following object is masked from 'package:tidyr':
+
+    expand
+
+
+The following objects are masked from 'package:data.table':
+
+    first, second
+
+
+The following objects are masked from 'package:base':
+
+    expand.grid, I, unname
+
+
+
+Attaching package: 'IRanges'
+
+
+The following object is masked from 'package:lubridate':
+
+    %within%
+
+
+The following objects are masked from 'package:dplyr':
+
+    collapse, desc, slice
+
+
+The following object is masked from 'package:purrr':
+
+    reduce
+
+
+The following object is masked from 'package:data.table':
+
+    shift
+
+
+
+Attaching package: 'AnnotationDbi'
+
+
+The following object is masked from 'package:dplyr':
+
+    select
+
+
+
+
+Loading required package: BiasedUrn
+
+Loading required package: geneLenDataBase
+
+
+Attaching package: 'geneLenDataBase'
+
+
+The following object is masked from 'package:S4Vectors':
+
+    unfactor
+
+
+
+Attaching package: 'gplots'
+
+
+The following object is masked from 'package:IRanges':
+
+    space
+
+
+The following object is masked from 'package:S4Vectors':
+
+    space
+
+
+The following object is masked from 'package:stats':
+
+    lowess
+
+
+
+Attaching package: 'kableExtra'
+
+
+The following object is masked from 'package:dplyr':
+
+    group_rows
+
+
+Loading required package: usethis
+
+Loading required package: viridisLite</code></pre>
+</div>
+</div>
+</section>
+<section id="load-ccle-gene-expression-data" class="level3">
+<h3 class="anchored" data-anchor-id="load-ccle-gene-expression-data">Load CCLE gene expression data</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load Homo sapiens gene data (including Entrez ID's).</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>hs <span class="ot">&lt;-</span> org.Hs.eg.db</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Load expression data from the CCLE, available here: https://depmap.org/portal/data_page/?tab=allData</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>CCLE <span class="ot">&lt;-</span> <span class="fu">read.gct</span>(<span class="st">"data/raw/CCLE_RNAseq_genes_counts_20180929.gct"</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove X's introduced by R for cell lines that start with a number, but not those that don't.</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(CCLE) <span class="ot">&lt;-</span> <span class="fu">sub</span>(<span class="st">"^X(</span><span class="sc">\\</span><span class="st">d+)"</span>, <span class="st">"</span><span class="sc">\\</span><span class="st">1"</span>, <span class="fu">colnames</span>(CCLE))</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Normalise CCLE counts using the limma voom method.</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>dge <span class="ot">&lt;-</span> <span class="fu">DGEList</span>(<span class="at">counts =</span> CCLE)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>dge <span class="ot">&lt;-</span> <span class="fu">calcNormFactors</span>(dge)</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>voom_dge <span class="ot">&lt;-</span> <span class="fu">voom</span>(dge, <span class="at">plot =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="0_Setup_files/figure-html/unnamed-chunk-1-1.png" class="img-fluid" width="672"></p>
+</div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>voom_CCLE <span class="ot">&lt;-</span> voom_dge<span class="sc">$</span>E</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Tidy up the environment.</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">c</span>(<span class="st">"dge"</span>, <span class="st">"voom_dge"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="load-gdsc2-drug-response-data" class="level3">
+<h3 class="anchored" data-anchor-id="load-gdsc2-drug-response-data">Load GDSC2 drug response data</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>GDSC2 <span class="ot">&lt;-</span> <span class="fu">fread</span>(<span class="st">"data/raw/GDSC2_fitted_dose_response_25Feb20.csv"</span>, <span class="at">sep=</span> <span class="st">';'</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># GDSC2 &lt;- read.xlsx("data/raw/GDSC2_fitted_dose_response_27Oct23.xlsx")</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter for cell lines that have data for the drug "Dasatinib".</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>dasatinib_GDSC2 <span class="ot">&lt;-</span> <span class="fu">filter</span>(GDSC2, DRUG_NAME <span class="sc">==</span> <span class="st">"Dasatinib"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="format-data" class="level3">
+<h3 class="anchored" data-anchor-id="format-data">Format data</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Standardize CCLE and GDSC2 cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774.</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># CCLE:</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(voom_CCLE)[<span class="fu">colnames</span>(voom_CCLE) <span class="sc">==</span> <span class="st">"TT_OESOPHAGUS"</span>] <span class="ot">&lt;-</span> <span class="st">"T-T_OESOPHAGUS"</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Isolate cell line and tissue labels for later indexing.</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>split_cell_line_tissues <span class="ot">&lt;-</span> <span class="fu">colnames</span>(voom_CCLE) <span class="sc">%&gt;%</span> <span class="fu">strsplit</span>(., <span class="st">"_"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(voom_CCLE) <span class="ot">&lt;-</span> <span class="fu">strsplit</span>(<span class="fu">colnames</span>(voom_CCLE), <span class="st">"_"</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lapply</span>(., <span class="cf">function</span>(x) x[<span class="dv">1</span>]) <span class="sc">%&gt;%</span> </span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unlist</span>()</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"># GDSC2:</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>dasatinib_GDSC2<span class="sc">$</span>CELL_LINE_NAME <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  dasatinib_GDSC2<span class="sc">$</span>CELL_LINE_NAME <span class="sc">==</span> <span class="st">"T-T"</span>, <span class="st">"T-T"</span>, <span class="co"># if</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">gsub</span>(<span class="st">"-"</span>, <span class="st">""</span>, dasatinib_GDSC2<span class="sc">$</span>CELL_LINE_NAME, <span class="at">fixed =</span> <span class="cn">TRUE</span>) <span class="co"># else</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter datasets for common cell lines.</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>common_lines <span class="ot">&lt;-</span> <span class="fu">intersect</span>(dasatinib_GDSC2<span class="sc">$</span>CELL_LINE_NAME,<span class="fu">colnames</span>(voom_CCLE))</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>match_voom_CCLE <span class="ot">&lt;-</span> <span class="fu">match</span>(common_lines, <span class="fu">colnames</span>(voom_CCLE))</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>common_voom_CCLE <span class="ot">&lt;-</span> voom_CCLE[ , <span class="fu">na.omit</span>(match_voom_CCLE)]</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>match_dasatinib_GDSC2 <span class="ot">&lt;-</span> <span class="fu">match</span>(common_lines, dasatinib_GDSC2<span class="sc">$</span>CELL_LINE_NAME)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>common_dasatinib_GDSC2 <span class="ot">&lt;-</span> dasatinib_GDSC2[<span class="fu">na.omit</span>(match_dasatinib_GDSC2),]</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(common_dasatinib_GDSC2)[<span class="dv">5</span>] <span class="ot">&lt;-</span> <span class="st">"CCLE_Name"</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Tidy up the environment.</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">c</span>(<span class="st">"common_lines"</span>, <span class="st">"match_voom_CCLE"</span>, <span class="st">"match_dasatinib_GDSC2"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="filter-data" class="level3">
+<h3 class="anchored" data-anchor-id="filter-data">Filter data</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter CCLE and GDSC2 data for BRCA and STAD cell lines with data for dasatinib.</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># GDSC (also adds a column for CDH1 expression data):</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>sort_dasatinib_GDSC2 <span class="ot">&lt;-</span> common_dasatinib_GDSC2 <span class="sc">%&gt;%</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(TCGA_DESC <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"BRCA"</span>, <span class="st">"STAD"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(AUC <span class="sc">&lt;</span> <span class="fu">quantile</span>(AUC, <span class="fl">0.33</span>) <span class="sc">|</span> AUC <span class="sc">&gt;</span> <span class="fu">quantile</span>(AUC, <span class="fl">0.66</span>))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>sort_dasatinib_GDSC2<span class="sc">$</span>CDH1 <span class="ot">&lt;-</span> common_voom_CCLE <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">any_of</span>(sort_dasatinib_GDSC2<span class="sc">$</span>CCLE_Name)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">slice</span>(<span class="fu">match</span>(<span class="st">"ENSG00000039068.14"</span>, <span class="fu">rownames</span>(.))) <span class="sc">%&gt;%</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.vector</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">t</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in set(x, j = name, value = value): 38 column matrix RHS of := will be
+treated as one vector</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># CCLE:</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>sort_voom_CCLE <span class="ot">&lt;-</span> common_voom_CCLE <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">any_of</span>(sort_dasatinib_GDSC2<span class="sc">$</span>CCLE_Name)) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.matrix</span>()</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Tidy up the environment.</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">c</span>(<span class="st">"common_voom_CCLE"</span>, <span class="st">"common_dasatinib_GDSC2"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="index-cell-lines-to-tissues" class="level3">
+<h3 class="anchored" data-anchor-id="index-cell-lines-to-tissues">Index cell lines to tissues</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a tool to find tissue type based on cell line name or vice versa.</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>tissue_tool <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">Cell_Line =</span> <span class="fu">sapply</span>(split_cell_line_tissues, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="dv">1</span>),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">Tissue_Type =</span> <span class="fu">sapply</span>(split_cell_line_tissues, <span class="cf">function</span>(x) <span class="fu">paste</span>(x[<span class="sc">-</span><span class="dv">1</span>], <span class="at">collapse =</span> <span class="st">"_"</span>)),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>tissue_tool <span class="ot">&lt;-</span> tissue_tool <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">Tissue_Type =</span> Tissue_Type <span class="sc">%&gt;%</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_remove_all</span>(<span class="st">"c"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">str_replace_all</span>(<span class="st">"[[:punct:]]"</span>, <span class="st">"_"</span>))</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create another tool for the same purpose, but only including cell lines of interest.</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>sort_tissue_tool <span class="ot">&lt;-</span> tissue_tool <span class="sc">%&gt;%</span> <span class="fu">filter</span>(Tissue_Type <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"BREAST"</span>, <span class="st">"STOMACH"</span>))</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>common_lines <span class="ot">&lt;-</span> <span class="fu">intersect</span>(<span class="fu">colnames</span>(sort_voom_CCLE), sort_tissue_tool<span class="sc">$</span>Cell_Line)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>sort_tissue_tool <span class="ot">&lt;-</span> sort_tissue_tool <span class="sc">%&gt;%</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(Cell_Line <span class="sc">%in%</span> common_lines) <span class="sc">%&gt;%</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">factor</span>(Cell_Line, <span class="at">levels =</span> common_lines))</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Tidy up the environment.</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(<span class="at">list =</span> <span class="fu">c</span>(<span class="st">"split_cell_line_tissues"</span>, <span class="st">"common_lines"</span>))</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove a cell line that causes problems: 2313287</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove column from sort_voom_CCLE</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="co"># sort_voom_CCLE &lt;- sort_voom_CCLE[,!colnames(sort_voom_CCLE) %in% "2313287"]</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co"># # Have to remove this from other objects</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a><span class="co"># sort_dasatinib_GDSC2 &lt;- sort_dasatinib_GDSC2[sort_dasatinib_GDSC2$CCLE_Name != "2313287",]</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="co"># tissuetoolsort &lt;- tissuetoolsort[tissuetoolsort$Cell_Line != "2313287",]</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="save-pre-processed-objects-as-.rds-files" class="level3">
+<h3 class="anchored" data-anchor-id="save-pre-processed-objects-as-.rds-files">Save pre-processed objects as .rds files</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># GDSC2</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(GDSC2, <span class="at">file =</span> <span class="st">"data/GDSC2.rds"</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># dasatinib_GDSC2</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(dasatinib_GDSC2, <span class="at">file =</span> <span class="st">"data/dasatinib_GDSC2.rds"</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># sort_dasatinib_GDSC2</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(sort_dasatinib_GDSC2, <span class="at">file =</span> <span class="st">"data/sort_dasatinib_GDSC2.rds"</span>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co"># voom_CCLE</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(voom_CCLE, <span class="at">file =</span> <span class="st">"data/voom_CCLE.rds"</span>)</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co"># sort_voom_CCLE</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(sort_voom_CCLE, <span class="at">file =</span> <span class="st">"data/sort_voom_CCLE.rds"</span>)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co"># tissue_tool</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(tissue_tool, <span class="at">file =</span> <span class="st">"data/tissue_tool.rds"</span>)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co"># sort_tissue_tool</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(sort_tissue_tool, <span class="at">file =</span> <span class="st">"data/sort_tissue_tool.rds"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    setTimeout(function() {
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const cites = ref.parentNode.getAttribute('data-cites').split(' ');
+    tippyHover(ref, function() {
+      var popup = window.document.createElement('div');
+      cites.forEach(function(cite) {
+        var citeDiv = window.document.createElement('div');
+        citeDiv.classList.add('hanging-indent');
+        citeDiv.classList.add('csl-entry');
+        var biblioDiv = window.document.getElementById('ref-' + cite);
+        if (biblioDiv) {
+          citeDiv.innerHTML = biblioDiv.innerHTML;
+        }
+        popup.appendChild(citeDiv);
+      });
+      return popup.innerHTML;
+    });
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

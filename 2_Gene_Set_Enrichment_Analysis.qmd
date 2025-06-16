@@ -1,0 +1,94 @@
+---
+title: "Gene Set Enrichment Analysis"
+author: "Kieran Redpath"
+format: html
+editor: source
+theme: cosmo
+---
+
+
+## Summary
++ Reloads processed data from 0_Setup.qmd and 1_Differential_Expression_Analysis.qmd
++ Carries out gene set enrichment analysis on differentially expressed gene list, ranked by limma-moderated t-statistic.
+
+### Load packages
+```{r}
+#| results: hide
+#| warning: false
+#| message: false
+#| echo: false
+
+library(CePa)
+library(data.table)
+library(dplyr)
+library(edgeR)
+library(fgsea)
+library(ggplot2)
+library(limma)
+library(reactome.db)
+set.seed(42)
+```
+
+### Load pre-processed data
+```{r}
+# Tool for converting gene names without calling AnnotationDbi::select() every time.
+gene_tool <- readRDS("data/gene_tool.rds")
+
+# Tool for indexing cell lines to tissues.
+tissue_tool <- readRDS("data/tissue_tool.rds")
+
+# Top table from differential expression analysis.
+top_table <- readRDS("1_output/top_table.rds")
+```
+
+### Rank genes by limma-moderated t-statistic
+```{r}
+# Format genes for Reactome pathway analysis, converting from Ensembl to Entrez ID's, and removing any that don't have Entrez ID's.
+ranked_genes <- top_table %>%
+  rownames_to_column(var = "rn") %>%
+  arrange(t) %>%
+  left_join(gene_tool, by = c("rn" = "ENSEMBL")) %>%
+  dplyr::filter(!is.na(ENTREZID)) %>% # Remove genes without Entrez gene IDs for fgsea.
+  dplyr::select(ENTREZID, t) %>%
+  deframe()
+```
+
+### Carry out gene set enrichment analysis
+```{r}
+#| warning: false
+
+# Find Reactome pathways that these genes are present in.
+all_pathways <- ranked_genes %>% names(.) %>% reactomePathways(.)
+
+# Carry out gsea analysis.
+gsea_results <- fgsea(pathways = all_pathways, stats = ranked_genes, maxSize = 500) %>% 
+  arrange(padj) # Dataset contains some duplicate Entrez gene IDs.
+
+# Identify pathways that are significantly enriched at a given BH-adjusted alpha.
+enriched_pathways <- gsea_results %>% dplyr::filter(padj < 0.05) %>% 
+  arrange(padj)
+
+# Identify shared parent pathways among significantly enriched pathways.
+parent_pathway_mapping <- collapsePathways(enriched_pathways, all_pathways, ranked_genes)
+parent_enriched_pathways <- enriched_pathways %>%
+  dplyr::filter(pathway %in% parent_pathway_mapping$mainPathways) %>%
+  arrange(padj)
+
+# Tidy up the environment.
+rm(list = c("ranked_genes", "all_pathways", "gsea_results", "parent_pathway_mapping"))
+```
+
+### Save processed objects as .rds files
+```{r}
+# enriched_pathways
+saveRDS(enriched_pathways, file = "2_output/enriched_pathways.rds")
+
+# parent_enriched_pathways
+saveRDS(parent_enriched_pathways, file = "2_output/parent_enriched_pathways.rds")
+```
+
+### Tidy up the environment and R memory
+```{r}
+# rm(list = ls())
+# gc()
+```
