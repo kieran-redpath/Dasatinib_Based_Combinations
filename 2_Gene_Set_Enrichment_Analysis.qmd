@@ -89,6 +89,6 @@ saveRDS(parent_enriched_pathways, file = "2_output/parent_enriched_pathways.rds"
 
 ### Tidy up the environment and R memory
 ```{r}
-# rm(list = ls())
-# gc()
+rm(list = ls())
+gc()
 ```

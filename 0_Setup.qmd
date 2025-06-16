@@ -112,8 +112,8 @@ rm(list = c("common_lines", "match_voom_CCLE", "match_dasatinib_GDSC2"))
 # Also filters to the cell lines with the highest and lowest tertile of AUC for dasatinib.
 # GDSC (also adds a column for CDH1 expression data):
 sort_dasatinib_GDSC2 <- common_dasatinib_GDSC2 %>%
-  filter(TCGA_DESC %in% c("BRCA", "STAD")) %>%
-  filter(AUC < quantile(AUC, 0.33) | AUC > quantile(AUC, 0.66))
+  filter(TCGA_DESC %in% c("BRCA", "STAD")) # %>%
+  # filter(AUC < quantile(AUC, 0.33) | AUC > quantile(AUC, 0.66))
 sort_dasatinib_GDSC2$CDH1 <- common_voom_CCLE %>% as.data.frame() %>%
   dplyr::select(any_of(sort_dasatinib_GDSC2$CCLE_Name)) %>%
   dplyr::slice(match("ENSG00000039068.14", rownames(.))) %>%
