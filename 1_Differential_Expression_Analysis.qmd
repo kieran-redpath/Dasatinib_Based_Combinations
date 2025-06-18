@@ -115,6 +115,8 @@ rm(list = c("adj_p_thresh"))
 
 ### Save processed objects as .rds files
 ```{r}
+# Remove unneeded columns
+top_table <- top_table %>% dplyr::select(-logAdjP, -highlight)
 # top_table
 saveRDS(top_table, file = "1_output/top_table.rds")
 ```
