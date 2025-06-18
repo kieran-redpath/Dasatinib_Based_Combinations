@@ -111,21 +111,6 @@ colnames(common_dasatinib_GDSC2)[5] <- "CCLE_Name"
 rm(list = c("common_lines", "match_voom_CCLE", "match_dasatinib_GDSC2"))
 ```
 
-
-### Inspect GDSC2 data to extract total number of breast and gastric cancer cell lines
-```{r}
-unique_GDSC2 <- GDSC2 %>%
-  dplyr::select(TCGA_DESC, CELL_LINE_NAME) %>%      # Keep only the desired columns
-  distinct(CELL_LINE_NAME, .keep_all = TRUE) # Keep only the first row for each unique cell line
-
-# Extract cell lines in the GDSC2 data that are BRCA or STAD according to TCGA classification.
-TOI_GDSC2 <- unique_GDSC2 %>%
-  dplyr::filter(TCGA_DESC %in% c("BRCA", "STAD"))
-
-# Tidy up the environment.
-rm(list = c("unique_GDSC2"))
-```
-
 ### Filter data
 ```{r}
 # Filter CCLE and GDSC2 data for BRCA and STAD cell lines with data for dasatinib.
@@ -162,13 +147,6 @@ tissue_tool <- tissue_tool %>% mutate(
     str_remove_all("c") %>%
     str_replace_all("[[:punct:]]", "_"))
 
-# Create another tool for the same purpose, including breast and stomach cell lines regardless of dasatinib response data.
-TOI_tissue_tool <- tissue_tool %>% filter(Tissue_Type %in% c("BREAST", "STOMACH")) # Data from CCLE.
-common_lines <- intersect(TOI_GDSC2$CELL_LINE_NAME, TOI_tissue_tool$Cell_Line) # Data from GDSC2.
-TOI_tissue_tool <- TOI_tissue_tool %>% # Overlap between the two.
-  filter(Cell_Line %in% common_lines) %>%
-  arrange(factor(Cell_Line, levels = common_lines))
-
 # Create another tool for the same purpose, but only including breast and stomach cell lines with dasatinib response data.
 sort_tissue_tool <- tissue_tool %>% filter(Tissue_Type %in% c("BREAST", "STOMACH")) # Data from CCLE.
 common_lines <- intersect(colnames(sort_voom_CCLE), sort_tissue_tool$Cell_Line) # Data from GDSC2 with dasatinib data.
@@ -177,7 +155,7 @@ sort_tissue_tool <- sort_tissue_tool %>% # Overlap between the two.
   arrange(factor(Cell_Line, levels = common_lines))
 
 # Tidy up the environment.
-rm(list = c("split_cell_line_tissues", "common_lines", "TOI_GDSC2"))
+rm(list = c("split_cell_line_tissues", "common_lines"))
 ```
 
 ### Index alternative names for all genes in the dataset.
@@ -209,9 +187,6 @@ saveRDS(sort_voom_CCLE, file = "data/sort_voom_CCLE.rds")
 
 # tissue_tool
 saveRDS(tissue_tool, file = "data/tissue_tool.rds")
-
-# TOI_tissue_tool
-saveRDS(TOI_tissue_tool, file = "data/TOI_tissue_tool.rds")
 
 # sort_tissue_tool
 saveRDS(sort_tissue_tool, file = "data/sort_tissue_tool.rds")
