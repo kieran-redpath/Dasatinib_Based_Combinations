@@ -59,8 +59,8 @@ ranked_genes <- top_table %>%
 
 ### Carry out gene set enrichment analysis
 ```{r}
-# Suppress warning about ties in some gene ranks for GSEA analysis.
 #| warning: false
+# Suppress warning about ties in some gene ranks for GSEA analysis.
 
 # Find Reactome pathways that these genes are present in.
 all_pathways <- ranked_genes %>% names(.) %>% reactomePathways(.)
