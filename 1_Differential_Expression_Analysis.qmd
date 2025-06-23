@@ -17,11 +17,11 @@ theme: cosmo
 #| message: false
 #| echo: false
 
+library(ggplot2)
 library(limma)
 library(edgeR)
 library(data.table)
 library(magrittr)
-library(ggplot2)
 library(CePa)
 library(tidyverse)
 library(ggbeeswarm)
