@@ -202,7 +202,7 @@ for(i in seq(0.1, 1.0, by = 0.1)){
 }
 
 # Determine the correlation threshold.
-cor_thresh <- 0.4....
+cor_thresh <- 0.4
 
 # Which drugs correlate to each pathway?
 # Add the number of correlated drugs as a column.
