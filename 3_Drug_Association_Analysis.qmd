@@ -150,9 +150,6 @@ for(drug in rownames(drug_response)){
     if(length(y) == 0){
       drug_response[drug, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
     } else{
-      if(length(y) > 1){
-        message("Multiple matches for: ", drug, " - ", cell_line) # Warn if there are multiple matches between a drug and cell_line combination.
-      }
       drug_response[drug, cell_line] <- y[1] # In case there are multiple values for a drug and cell_line combination, take the first match.
     }
   }

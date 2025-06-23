@@ -54,7 +54,7 @@ colnames(CCLE) <- sub("^X(\\d+)", "\\1", colnames(CCLE))
 # Convert gene names to stable Ensembl IDs by removing version numbers.
 rownames(CCLE) <- sub("\\..*", "", rownames(CCLE))
 # Ensure that cell line names are all uppercase for consistency.
-colnames(CCLE) <- toupper(colnames(CCLE))
+# colnames(CCLE) <- toupper(colnames(CCLE))
 # Normalise CCLE counts using the limma voom method.
 dge <- DGEList(counts = CCLE)
 dge <- calcNormFactors(dge)
@@ -69,14 +69,14 @@ rm(list = c("dge", "voom_dge"))
 ```{r}
 # Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
 # Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
-GDSC2 <- fread("data/raw/GDSC2_fitted_dose_response_25Feb20.csv", sep= ';')
+# GDSC2 <- fread("data/raw/GDSC2_fitted_dose_response_25Feb20.csv", sep= ';')
 
 # Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
 # Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
-# GDSC2 <- read.xlsx("data/raw/GDSC2_fitted_dose_response_27Oct23.xlsx")
+GDSC2 <- read.xlsx("data/raw/GDSC2_fitted_dose_response_27Oct23.xlsx")
 
 # Convert column names to uppercase for consistency with CCLE.
-GDSC2$CELL_LINE_NAME <- toupper(GDSC2$CELL_LINE_NAME)
+# GDSC2$CELL_LINE_NAME <- toupper(GDSC2$CELL_LINE_NAME)
 
 # Resolve discrepancies between IC50 values for drugs tested across multiple dose response curves.
 GDSC2 <- GDSC2 %>%
