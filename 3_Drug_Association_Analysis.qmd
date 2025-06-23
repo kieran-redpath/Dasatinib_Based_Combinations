@@ -61,7 +61,7 @@ gene_tool <- readRDS("data/gene_tool.rds")
 top_table <- readRDS("1_output/top_table.rds")
 
 # enriched Reactome pathways from gene set enrichment analysis.
-selected_enriched_pathways <- readRDS("2_output/enriched_pathways.rds")
+selected_enriched_pathways <- readRDS("2_output/parent_enriched_pathways.rds")
 ```
 
 ### Extract list of enriched genes in each pathway, converting to Ensembl IDs to match CCLE data.
@@ -187,7 +187,7 @@ for(i in seq(0.1, 1.0, by = 0.1)){
 }
 
 # Determine the correlation threshold.
-cor_thresh <- 0.4
+cor_thresh <- 0.5
 
 # Which drugs correlate to each pathway?
 # Add the number of correlated drugs as a column.
