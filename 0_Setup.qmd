@@ -10,7 +10,7 @@ theme: cosmo
 + Loads and normalizes gene expression data from the CCLE.
 + Loads and processes drug response data from the GDSC.
 + Filters these data to the relevant information for this project.
-+ Saves these objects as .rds files for later use.
++ Saves these outputs as .rds files for later use.
 
 ### Load packages
 ```{r}
@@ -77,6 +77,12 @@ GDSC2 <- fread("data/raw/GDSC2_fitted_dose_response_25Feb20.csv", sep= ';')
 
 # Convert column names to uppercase for consistency with CCLE.
 GDSC2$CELL_LINE_NAME <- toupper(GDSC2$CELL_LINE_NAME)
+
+# Resolve discrepancies between IC50 values for drugs tested across multiple dose response curves.
+GDSC2 <- GDSC2 %>%
+  group_by(CELL_LINE_NAME, DRUG_NAME) %>%
+  mutate(MEAN_LN_IC50 = mean(LN_IC50, na.rm = TRUE)) %>%
+  ungroup()
 ```
 
 ### Format data
@@ -96,7 +102,7 @@ GDSC2$CELL_LINE_NAME <- ifelse(
   gsub("-", "", GDSC2$CELL_LINE_NAME, fixed = TRUE) # else
 )
 
-# Extract dasatinib response data from GDSC2
+# Extract dasatinib response data from GDSC2.
 dasatinib_GDSC2 <- filter(GDSC2, DRUG_NAME == "Dasatinib")
 
 # Filter datasets for common cell lines.
@@ -114,16 +120,14 @@ rm(list = c("common_lines", "match_voom_CCLE", "match_dasatinib_GDSC2"))
 ### Filter data
 ```{r}
 # Filter CCLE and GDSC2 data for BRCA and STAD cell lines with data for dasatinib.
-# Also filters to the cell lines with the highest and lowest tertile of AUC for dasatinib.
 # GDSC (also adds a column for CDH1 expression data):
 sort_dasatinib_GDSC2 <- common_dasatinib_GDSC2 %>%
-  filter(TCGA_DESC %in% c("BRCA", "STAD")) # %>%
-  # filter(AUC < quantile(AUC, 0.33) | AUC > quantile(AUC, 0.66))
-sort_dasatinib_GDSC2$CDH1 <- common_voom_CCLE %>% as.data.frame() %>%
+  filter(TCGA_DESC %in% c("BRCA", "STAD"))
+sort_dasatinib_GDSC2$CDH1 <- common_voom_CCLE %>%
+  as.data.frame() %>%
   dplyr::select(any_of(sort_dasatinib_GDSC2$CCLE_Name)) %>%
-  dplyr::slice(match("ENSG00000039068.14", rownames(.))) %>%
-  as.vector() %>%
-  t()
+  dplyr::slice(match("ENSG00000039068", rownames(.))) %>%
+  unlist(use.names = FALSE) # flatten to a vector.
 
 # CCLE:
 sort_voom_CCLE <- common_voom_CCLE %>%
@@ -170,28 +174,28 @@ gene_tool <- rownames(CCLE) %>%
 
 ### Save pre-processed objects as .rds files
 ```{r}
-# GDSC2
+# GDSC2.
 saveRDS(GDSC2, file = "data/GDSC2.rds")
 
-# dasatinib_GDSC2
+# dasatinib_GDSC2.
 saveRDS(dasatinib_GDSC2, file = "data/dasatinib_GDSC2.rds")
 
-# sort_dasatinib_GDSC2
+# sort_dasatinib_GDSC2.
 saveRDS(sort_dasatinib_GDSC2, file = "data/sort_dasatinib_GDSC2.rds")
 
-# voom_CCLE
+# voom_CCLE.
 saveRDS(voom_CCLE, file = "data/voom_CCLE.rds")
 
-# sort_voom_CCLE
+# sort_voom_CCLE.
 saveRDS(sort_voom_CCLE, file = "data/sort_voom_CCLE.rds")
 
-# tissue_tool
+# tissue_tool.
 saveRDS(tissue_tool, file = "data/tissue_tool.rds")
 
-# sort_tissue_tool
+# sort_tissue_tool.
 saveRDS(sort_tissue_tool, file = "data/sort_tissue_tool.rds")
 
-# gene_tool
+# gene_tool.
 saveRDS(gene_tool, file = "data/gene_tool.rds")
 ```
 

@@ -9,7 +9,9 @@ theme: cosmo
 
 ## Summary
 + Reloads processed data from 0_Setup.qmd and 1_Differential_Expression_Analysis.qmd
-+ Carries out gene set enrichment analysis on differentially expressed gene list, ranked by limma-moderated t-statistic.
++ Carries out gene set enrichment analysis for Reactome pathways on differentially expressed gene list, ranked by limma-moderated t-statistic.
++ Collapses Reactome pathway terms to shared parent pathway terms.
++ Saves these outputs as .rds files for later use.
 
 ### Load packages
 ```{r}
@@ -43,28 +45,32 @@ top_table <- readRDS("1_output/top_table.rds")
 
 ### Rank genes by limma-moderated t-statistic
 ```{r}
-# Format genes for Reactome pathway analysis, converting from Ensembl to Entrez ID's, and removing any that don't have Entrez ID's.
+# Format genes for Reactome pathway analysis, converting to Entrez IDs for fgsea, while handling missing and duplicate Entrez IDs.
 ranked_genes <- top_table %>%
-  rownames_to_column(var = "rn") %>%
-  arrange(t) %>%
-  left_join(gene_tool, by = c("rn" = "ENSEMBL")) %>%
-  dplyr::filter(!is.na(ENTREZID)) %>% # Remove genes without Entrez gene IDs for fgsea.
-  dplyr::select(ENTREZID, t) %>%
-  deframe()
+  rownames_to_column(var = "ENSEMBL") %>% # Convert rownames to a column.
+  arrange(adj.P.Val) %>% # Ensure that the top_table is sorted by BH-adjusted p-value.
+  left_join(gene_tool, by = c("ENSEMBL" = "ENSEMBL")) %>% # Add information for Entrez ID and gene symbol.
+  dplyr::filter(!is.na(ENTREZID)) %>% # Remove genes without Entrez gene IDs.
+  distinct(ENTREZID, .keep_all = TRUE) %>% # In case of duplicates, keep only the first occurrence of each Entrez ID (i.e. the one with the lowest BH-adjusted p-value).
+  dplyr::select(ENTREZID, t) %>% # Keep only Entrez IDs and t-statistic.
+  arrange(t) %>% # Arrange by t-statistic for gsea.
+  deframe() # Convert to named vector.
 ```
 
 ### Carry out gene set enrichment analysis
 ```{r}
+# Suppress warning about ties in some gene ranks for GSEA analysis.
 #| warning: false
 
 # Find Reactome pathways that these genes are present in.
 all_pathways <- ranked_genes %>% names(.) %>% reactomePathways(.)
+# 1:many mapping reflects that many genes map to multiple reactome terms.
 
-# Carry out gsea analysis.
+# Carry out GSEA analysis, excluding uninformative pathways with over 500 genes.
 gsea_results <- fgsea(pathways = all_pathways, stats = ranked_genes, maxSize = 500) %>% 
   arrange(padj) # Dataset contains some duplicate Entrez gene IDs.
 
-# Identify pathways that are significantly enriched at a given BH-adjusted alpha.
+# Identify pathways that are significantly enriched at a given BH-adjusted α.
 enriched_pathways <- gsea_results %>% dplyr::filter(padj < 0.05) %>% 
   arrange(padj)
 

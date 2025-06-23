@@ -8,7 +8,9 @@ theme: cosmo
 
 ## Summary
 + Reloads processed data from 0_Setup.qmd, 1_Differential_Expression_Analysis.qmd, and 2_Gene_Set_Enrichment_Analysis.qmd.
-+ Carries out matrix multiplication to transform gene expression data for all cell lines based on the expression values in the 38 gastric and breast cancer cell lines with the top and bottom tertile values for dasatinib response.
++ Carries out matrix multiplication to transform gene expression data for all cell lines based on the expression values in gastric and breast cancer cell lines with dasatinib response data.
++ Calculates Spearman correlations between pathway metagenes calculated with matrix multiplication and drug response across the entire set of cell lines shared between the GDSC2 and CCLE databases.
++ Saves a summary human readable .xlsx file containing relevant results.
 
 ### Load packages
 ```{r}
@@ -41,7 +43,7 @@ set.seed(42)
 ### Load pre-processed data
 ```{r}
 # GDSC2 response data for all cell lines.
-GDSC2 <- readRDS("data/GDSC2.rds") # Not sure if we need this.
+GDSC2 <- readRDS("data/GDSC2.rds")
 
 # GDSC2 dasatinib response data for cell lines used in differential expression analysis.
 sort_dasatinib_GDSC2 <- readRDS("data/sort_dasatinib_GDSC2.rds")
@@ -59,17 +61,14 @@ gene_tool <- readRDS("data/gene_tool.rds")
 top_table <- readRDS("1_output/top_table.rds")
 
 # enriched Reactome pathways from gene set enrichment analysis.
-enriched_pathways <- readRDS("2_output/enriched_pathways.rds") # not sure if we need this.
-
-# enriched parent Reactome pathways from gene set enrichment analysis.
-parent_enriched_pathways <- readRDS("2_output/parent_enriched_pathways.rds")
+selected_enriched_pathways <- readRDS("2_output/enriched_pathways.rds")
 ```
 
 ### Extract list of enriched genes in each pathway, converting to Ensembl IDs to match CCLE data.
 ```{r}
 # Extract entrez IDs in each enriched pathway as a list of named vectors.
-leading_edge_entrez <- lapply(seq_len(nrow(parent_enriched_pathways)), function(i) {
-  parent_enriched_pathways$leadingEdge[[i]]
+leading_edge_entrez <- lapply(seq_len(nrow(selected_enriched_pathways)), function(i) {
+  selected_enriched_pathways$leadingEdge[[i]]
 })
 # Create a named vector to convert entrez to ensembl IDs more efficiently.
 entrez_to_ensembl <- setNames(as.character(gene_tool$ENSEMBL), as.character(gene_tool$ENTREZ))
@@ -79,7 +78,7 @@ leading_edge_ensembl <- lapply(leading_edge_entrez, function(entrez_ids) {
   unname(ensembl_ids)
 })
 # Assign pathway names.
-names(leading_edge_ensembl) <- parent_enriched_pathways$pathway
+names(leading_edge_ensembl) <- selected_enriched_pathways$pathway
 
 # Tidy up the environment.
 rm(list = c("entrez_to_ensembl", "leading_edge_entrez"))
@@ -88,13 +87,13 @@ rm(list = c("entrez_to_ensembl", "leading_edge_entrez"))
 ### OPTIONAL: Carry out matrix multiplication
 ```{r}
 # Create empty data matrix for metagenes in cell lines of interest.
-pathway_matrix_x <- matrix(data = 0, nrow(parent_enriched_pathways), ncol(sort_voom_CCLE))
-rownames(pathway_matrix_x) <- parent_enriched_pathways$pathway
+pathway_matrix_x <- matrix(data = 0, nrow(selected_enriched_pathways), ncol(sort_voom_CCLE))
+rownames(pathway_matrix_x) <- selected_enriched_pathways$pathway
 colnames(pathway_matrix_x) <- colnames((sort_voom_CCLE))
 
 # Create empty data matrix for metagenes in all cell lines.
-pathway_matrix_y <- matrix(data = 0, nrow(parent_enriched_pathways), ncol(voom_CCLE))
-rownames(pathway_matrix_y) <- parent_enriched_pathways$pathway
+pathway_matrix_y <- matrix(data = 0, nrow(selected_enriched_pathways), ncol(voom_CCLE))
+rownames(pathway_matrix_y) <- selected_enriched_pathways$pathway
 colnames(pathway_matrix_y) <- colnames((voom_CCLE))
 
 # Create metagenes for pathways with more than four genes, in cell lines of interest and all cell lines.
@@ -144,16 +143,13 @@ drug_response <- matrix(0, length(unique(GDSC2$DRUG_NAME)), length(unique(GDSC2$
 rownames(drug_response) <- unique(GDSC2$DRUG_NAME)
 colnames(drug_response) <- unique(GDSC2$CELL_LINE_NAME)
 
-# Extract tidy formatted drug response (AUC) data from the GDSC2.
+# Extract tidy formatted drug response (MEAN_LN_IC50) data from the GDSC2.
 for(drug in rownames(drug_response)){
   for(cell_line in colnames(drug_response)){
-    y <- GDSC2$AUC[GDSC2$DRUG_NAME == drug & GDSC2$CELL_LINE_NAME == cell_line]
+    y <- GDSC2$MEAN_LN_IC50[GDSC2$DRUG_NAME == drug & GDSC2$CELL_LINE_NAME == cell_line]
     if(length(y) == 0){
-      drug_response[drug, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign NA.
+      drug_response[drug, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
     } else{
-      if(length(y) > 1){
-        message("Multiple matches for: ", drug, " - ", cell_line) # Warn if there are multiple matches between a drug and cell_line combination.
-      }
       drug_response[drug, cell_line] <- y[1] # In case there are multiple values for a drug and cell_line combination, take the first match.
     }
   }
@@ -179,10 +175,6 @@ subset_pathway_matrix_y <- pathway_matrix_y %>%
 drug_metagene_correlation <- cor(t(subset_pathway_matrix_y), t(subset_drug_response),
                                  method = "spearman") %>% na.omit() # Remove pathways that don't have correlations - in this case, those with genes < 4.
 
-# Save the correlations in csv format.
-write.csv(drug_metagene_correlation, file = "3_output/drug_metagene_correlation.csv", sep = ",",
-          row.names = T, col.names = T)
-# Do we need to set sep or col.names?
 # Tidy up the environment.
 rm(list = c("subset_drug_response", "subset_pathway_matrix_y"))
 ```
@@ -245,7 +237,7 @@ rm(list = c("pathways", "drugs", "cor_thresh"))
 summary <- list()
 summary$sort_dasatinib_GDSC2 <- sort_dasatinib_GDSC2
 summary$top_table <- top_table %>% rownames_to_column(var = "Ensembl ID")
-summary$parent_enriched_pathways <- parent_enriched_pathways
+summary$selected_enriched_pathways <- selected_enriched_pathways
 summary$drug_metagene_correlation <- drug_metagene_correlation %>% as.data.frame() %>% rownames_to_column(var = "Pathway")
 summary$correlated_drugs <- correlated_drugs
 summary$correlated_pathways <- correlated_pathways
@@ -267,6 +259,6 @@ rm(list = c("correlated_drugs", "correlated_pathways", "i", "wb", "name"))
 
 ### Tidy up the environment and R memory
 ```{r}
-# rm(list = ls())
-# gc()
+rm(list = ls())
+gc()
 ```
