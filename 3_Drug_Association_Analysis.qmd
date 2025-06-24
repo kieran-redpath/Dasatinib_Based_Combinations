@@ -84,7 +84,7 @@ names(leading_edge_ensembl) <- selected_enriched_pathways$pathway
 rm(list = c("entrez_to_ensembl", "leading_edge_entrez"))
 ```
 
-### OPTIONAL: Carry out matrix multiplication
+### Carry out matrix multiplication
 ```{r}
 # Create empty data matrix for metagenes in cell lines of interest.
 pathway_matrix_x <- matrix(data = 0, nrow(selected_enriched_pathways), ncol(sort_voom_CCLE))
@@ -96,9 +96,9 @@ pathway_matrix_y <- matrix(data = 0, nrow(selected_enriched_pathways), ncol(voom
 rownames(pathway_matrix_y) <- selected_enriched_pathways$pathway
 colnames(pathway_matrix_y) <- colnames((voom_CCLE))
 
-# Create metagenes for pathways with more than four genes, in cell lines of interest and all cell lines.
+# Create metagenes for pathways with more than five genes driving enrichment, in cell lines of interest and all cell lines.
 for(pathway in names(leading_edge_ensembl)){
-  if(length(leading_edge_ensembl[[pathway]]) > 4){
+  if(length(leading_edge_ensembl[[pathway]]) > 5){
     
     # Filter gene expression data for pathway genes in cell lines of interest.
     pathway_sort_voom_CCLE <- subset(sort_voom_CCLE, rownames(sort_voom_CCLE) %in% leading_edge_ensembl[[pathway]])
@@ -136,27 +136,64 @@ rm(list = c("pathway" , "svd_x", "metagene_x", "trans_matrix", "metagene_y",
             "pathway_voom_CCLE", "pathway_sort_voom_CCLE"))
 ```
 
-### Isolate drug response data for each cell line.
+### Isolate drug response data for each cell line
 ```{r}
-# Create empty data matrix for drug response in all cell lines that have GDSC2 data.
-drug_response <- matrix(0, length(unique(GDSC2$DRUG_NAME)), length(unique(GDSC2$CELL_LINE_NAME)))
-rownames(drug_response) <- unique(GDSC2$DRUG_NAME)
-colnames(drug_response) <- unique(GDSC2$CELL_LINE_NAME)
+# # Create empty data matrix for drug response in all cell lines that have GDSC2 data.
+# drug_response <- matrix(0, length(unique(GDSC2$DRUG_NAME)), length(unique(GDSC2$CELL_LINE_NAME)))
+# rownames(drug_response) <- unique(GDSC2$DRUG_NAME)
+# colnames(drug_response) <- unique(GDSC2$CELL_LINE_NAME)
+# 
+# # Extract tidy formatted drug response (AUC) data from the GDSC2.
+# for(drug in rownames(drug_response)){
+#   for(cell_line in colnames(drug_response)){
+#     y <- GDSC2$AUC[GDSC2$DRUG_NAME == drug & GDSC2$CELL_LINE_NAME == cell_line]
+#     if(length(y) == 0){
+#       drug_response[drug, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
+#     } else{
+#       drug_response[drug, cell_line] <- y[1] # In case there are multiple values for a drug and cell_line combination, take the first match.
+#     }
+#   }
+# }
+# 
+# # Tidy up the environment.
+# rm(list = c("cell_line", "drug", "y"))
+```
 
-# Extract tidy formatted drug response (AUC) data from the GDSC2.
-for(drug in rownames(drug_response)){
-  for(cell_line in colnames(drug_response)){
-    y <- GDSC2$AUC[GDSC2$DRUG_NAME == drug & GDSC2$CELL_LINE_NAME == cell_line]
-    if(length(y) == 0){
-      drug_response[drug, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
+### Isolate drug response data for each cell line
+```{r}
+# Extract drug names and IDs from GDSC2.
+drug_info <- unique(GDSC2[, c("DRUG_ID", "DRUG_NAME")])
+
+# Identify duplicated drug names.
+duplicated_names <- drug_info$DRUG_NAME[duplicated(drug_info$DRUG_NAME)]
+drug_info$rownames <- ifelse(
+  drug_info$DRUG_NAME %in% duplicated_names,
+  paste0(drug_info$DRUG_NAME, "_", drug_info$DRUG_ID),
+  drug_info$DRUG_NAME
+)
+
+# Create response matrix.
+drug_ids <- drug_info$DRUG_ID
+cell_lines <- unique(GDSC2$CELL_LINE_NAME)
+drug_response <- matrix(0, nrow = length(drug_ids), ncol = length(cell_lines))
+rownames(drug_response) <- drug_info$rownames
+colnames(drug_response) <- cell_lines
+
+# Fill response matrix.
+for (id in drug_ids) {
+  rowname <- drug_info$rownames[drug_info$DRUG_ID == id]
+  for (cell_line in cell_lines) {
+    response <- GDSC2$AUC[GDSC2$DRUG_ID == id & GDSC2$CELL_LINE_NAME == cell_line]
+    if(length(response) == 0){
+      drug_response[rowname, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
     } else{
-      drug_response[drug, cell_line] <- y[1] # In case there are multiple values for a drug and cell_line combination, take the first match.
+      drug_response[rowname, cell_line] <- response # In case there are multiple values for a drug and cell_line combination, take the first match.
     }
   }
 }
 
 # Tidy up the environment.
-rm(list = c("cell_line", "drug", "y"))
+rm(list = c("id", "drug_ids", "rowname", "cell_lines", "cell_line", "response", "duplicated_names", "drug_info"))
 ```
 
 ### Calculate correlations between metagene value and drug response
@@ -173,7 +210,7 @@ subset_pathway_matrix_y <- pathway_matrix_y %>%
   as.matrix()
 
 drug_metagene_correlation <- cor(t(subset_pathway_matrix_y), t(subset_drug_response),
-                                 method = "spearman") %>% na.omit() # Remove pathways that don't have correlations - in this case, those with genes < 4.
+                                 method = "spearman") %>% na.omit() # Remove pathways that don't have correlations - in this case, those with genes < 6.
 
 # Tidy up the environment.
 rm(list = c("subset_drug_response", "subset_pathway_matrix_y"))
@@ -227,16 +264,22 @@ correlated_drugs
 moderate_drug_metagene_correlation <- drug_metagene_correlation
 moderate_drug_metagene_correlation[abs(moderate_drug_metagene_correlation) < cor_thresh] <- NA
 
-# Tidy up the environment
-rm(list = c("pathways", "drugs", "cor_thresh"))
+# Tidy up the environment.
+rm(list = c("cor_thresh", "i"))
 ```
 
 ### Output a summary document
 ```{r}
-# Create summary object
+# Create summary object.
 summary <- list()
 summary$sort_dasatinib_GDSC2 <- sort_dasatinib_GDSC2
-summary$top_table <- top_table %>% rownames_to_column(var = "Ensembl ID")
+
+# Add other gene IDs to the top_table of gene expression before adding it to the summary object.
+gene_tool_deduplicated <- gene_tool %>% distinct(ENSEMBL, .keep_all = TRUE)
+summary$top_table <- top_table %>% rownames_to_column(var = "ENSEMBL") %>%
+  inner_join(gene_tool_deduplicated[, c("ENSEMBL", "SYMBOL", "ENTREZID")], by = "ENSEMBL") %>%
+  relocate(SYMBOL, ENTREZID, ENSEMBL)
+
 summary$selected_enriched_pathways <- selected_enriched_pathways
 summary$drug_metagene_correlation <- drug_metagene_correlation %>% as.data.frame() %>% rownames_to_column(var = "Pathway")
 summary$correlated_drugs <- correlated_drugs
@@ -254,7 +297,7 @@ for (name in names(summary)) {
 saveWorkbook(wb, file = "3_output/summary.xlsx", overwrite = TRUE)
 
 # Tidy up the environment
-rm(list = c("correlated_drugs", "correlated_pathways", "i", "wb", "name"))
+rm(list = c("correlated_drugs", "correlated_pathways", "wb", "name", "gene_tool_deduplicated"))
 ```
 
 ### Tidy up the environment and R memory

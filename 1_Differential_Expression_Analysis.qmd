@@ -97,7 +97,7 @@ sum(top_table$adj.P.Val < 0.05)
 # Plot fold change in AUC against adjusted p-value.
 # Create new columns in top_table for plotting.
 top_table$logAdjP <- -log10(top_table$adj.P.Val)
-top_table$highlight <- (top_table$adj.P.Val < 0.05) & (abs(top_table$logFC) > 1)
+top_table$highlight <- (top_table$adj.P.Val < 0.05)
 # Define the adjusted p-value threshold line.
 adj_p_thresh <- -log10(0.05)
 # Plot.
@@ -105,7 +105,6 @@ ggplot(top_table, aes(x = logFC, y = logAdjP)) +
   geom_point(aes(color = highlight), size = 1) +
   scale_color_manual(values = c("black", "red")) +
   geom_hline(yintercept = adj_p_thresh, linetype = "dashed", color = "blue") +
-  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "blue") +
   labs(title = "Volcano Plot (Adjusted P-values)", x = "log2 Fold Change", y = "-log10(Adjusted P-value)") +
   theme_minimal()
 

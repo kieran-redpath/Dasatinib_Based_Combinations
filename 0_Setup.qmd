@@ -88,19 +88,23 @@ GDSC2 <- GDSC2 %>%
 ### Format data
 ```{r}
 #| warning: false
-# Standardize CCLE and GDSC2 cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774.
+# Standardize CCLE and GDSC2 cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774, as well as https://www.cellosaurus.org/CVCL_S641 and https://www.cellosaurus.org/CVCL_1330
 # CCLE:
 colnames(voom_CCLE)[colnames(voom_CCLE) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
-# Isolate cell line and tissue labels for later indexing.
+colnames(voom_CCLE)[colnames(voom_CCLE) == "KMH2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"] <- "KM-H2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"
+# Separate cell line and tissue identifiers for later indexing.
 split_cell_line_tissues <- colnames(voom_CCLE) %>% strsplit(., "_")
 colnames(voom_CCLE) <- strsplit(colnames(voom_CCLE), "_") %>% 
   lapply(., function(x) x[1]) %>% 
   unlist()
 # GDSC2:
-GDSC2$CELL_LINE_NAME <- ifelse(
-  GDSC2$CELL_LINE_NAME == "T-T", "T-T", # if
-  gsub("-", "", GDSC2$CELL_LINE_NAME, fixed = TRUE) # else
-)
+GDSC2 <- GDSC2 %>%
+  mutate(CELL_LINE_NAME = case_when(
+    CELL_LINE_NAME == "T-T"    ~ "T-T",
+    CELL_LINE_NAME == "KM-H2"  ~ "KM-H2",
+    CELL_LINE_NAME == "KMH-2"  ~ "KMH-2",
+    TRUE ~ gsub("-", "", CELL_LINE_NAME, fixed = TRUE)
+  ))
 
 # Extract dasatinib response data from GDSC2.
 dasatinib_GDSC2 <- filter(GDSC2, DRUG_NAME == "Dasatinib")
@@ -152,8 +156,8 @@ tissue_tool <- tissue_tool %>% mutate(
     str_replace_all("[[:punct:]]", "_"))
 
 # Create another tool for the same purpose, but only including breast and stomach cell lines with dasatinib response data.
-sort_tissue_tool <- tissue_tool %>% filter(Tissue_Type %in% c("BREAST", "STOMACH")) # Data from CCLE.
-common_lines <- intersect(colnames(sort_voom_CCLE), sort_tissue_tool$Cell_Line) # Data from GDSC2 with dasatinib data.
+sort_tissue_tool <- tissue_tool %>% filter(Tissue_Type %in% c("BREAST", "STOMACH")) # Cell lines from CCLE.
+common_lines <- intersect(colnames(sort_voom_CCLE), sort_tissue_tool$Cell_Line) # Cell lines in GDSC2 with dasatinib data.
 sort_tissue_tool <- sort_tissue_tool %>% # Overlap between the two.
   filter(Cell_Line %in% common_lines) %>%
   arrange(factor(Cell_Line, levels = common_lines))
@@ -162,7 +166,7 @@ sort_tissue_tool <- sort_tissue_tool %>% # Overlap between the two.
 rm(list = c("split_cell_line_tissues", "common_lines"))
 ```
 
-### Index alternative names for all genes in the dataset.
+### Index alternative identifiers for all genes in the dataset
 ```{r}
 # Create the gene name reference tool.
 gene_tool <- rownames(CCLE) %>%
