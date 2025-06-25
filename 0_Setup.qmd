@@ -73,7 +73,7 @@ rm(list = c("dge", "voom_dge"))
 
 # Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
 # Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
-GDSC2 <- read.xlsx("data/raw/GDSC2_fitted_dose_response_27Oct23.xlsx")
+GDSC2 <- read.xlsx("data/raw/GDSC1_fitted_dose_response_27Oct23.xlsx")
 
 # Convert column names to uppercase for consistency with CCLE.
 GDSC2$CELL_LINE_NAME <- toupper(GDSC2$CELL_LINE_NAME)
@@ -107,7 +107,7 @@ GDSC2 <- GDSC2 %>%
   ))
 
 # Extract dasatinib response data from GDSC2.
-dasatinib_GDSC2 <- filter(GDSC2, DRUG_NAME == "Dasatinib")
+dasatinib_GDSC2 <- filter(GDSC2, DRUG_NAME == "Capivasertib")
 
 # Filter datasets for common cell lines.
 common_lines <- intersect(dasatinib_GDSC2$CELL_LINE_NAME,colnames(voom_CCLE))
