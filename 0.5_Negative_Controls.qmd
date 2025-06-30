@@ -1,0 +1,218 @@
+---
+title: "Negative Controls for Differential Gene Expression Analysis and Gene Set Enrichment Analysis"
+author: "Kieran Redpath"
+format: html
+editor: source
+theme: cosmo
+---
+
+## Summary
++ Carries out differential expression analysis between BRCA and STAD cell lines with the top and bottom tertiles for DOI response.
++ Saves these outputs as .rds files for later use.
++ Reloads processed data from 0_Setup.qmd and 1_Differential_Expression_Analysis.qmd
++ Carries out gene set enrichment analysis for Reactome pathways on differentially expressed gene list, ranked by limma-moderated t-statistic.
++ Collapses Reactome pathway terms to shared parent pathway terms.
++ Saves these outputs as .rds files for later use.
+
+### Load packages
+```{r}
+#| results: hide
+#| warning: false
+#| message: false
+#| echo: false
+
+library(ggplot2)
+library(limma)
+library(edgeR)
+library(data.table)
+library(magrittr)
+library(CePa)
+library(tidyverse)
+library(ggbeeswarm)
+library(dplyr)
+library(ReactomePA)
+library(org.Hs.eg.db)
+library(reactome.db)
+library(goseq)
+library(gplots)
+source('data/raw/heatmap-mik.R')
+library(knitr)
+library(kableExtra)
+library(devtools)
+library(viridis)
+library(openxlsx)
+library(fgsea)
+set.seed(42)
+```
+
+### Load pre-processed data
+```{r}
+# GDSC DOI response data for cell lines used in DE analysis.
+sort_DOI_GDSC <- readRDS("data/sort_DOI_GDSC.rds")
+
+# CCLE normalized gene expression data for cell lines used in DE analysis.
+sort_voom_CCLE <- readRDS("data/sort_voom_CCLE.rds")
+```
+
+### Examine the data
+```{r}
+# Check that all column names are identical between the CCLE and GDSC datasets
+sum(colnames(sort_voom_CCLE)==sort_DOI_GDSC$CCLE_Name)
+# What types of data are included in the processed GDSC dataset?
+names(sort_DOI_GDSC)
+```
+
+### Randomise gene names for negative controls
+```{r}
+# Randomise gene names to run a negative control for pathway analysis.
+sort_voom_CCLE_negative <- sort_voom_CCLE
+# Create a randomised list of the gene names.
+random_genes <- sample(rownames(sort_voom_CCLE_negative))
+# Reassign these to the matrix.
+rownames(sort_voom_CCLE_negative) <- random_genes
+
+# Tidy up the environment
+rm(list = c("random_genes"))
+```
+
+### Differential expression analysis
+```{r}
+# Create groups for comparison, based on drug response to DOI.
+group <- cut(
+  sort_DOI_GDSC$AUC,
+  breaks = quantile(sort_DOI_GDSC$AUC, probs = c(0, 1/3, 2/3, 1), na.rm = TRUE),
+  labels = c("Bottom", "Middle", "Top"),
+  include.lowest = TRUE
+)
+
+# How many cell lines are in each group?
+table(group)
+# Visualize the ranges of drug response values in each group.
+ggplot(sort_DOI_GDSC, aes(x = group, y = AUC)) +
+  geom_boxplot() +
+  labs(title = "AUC Distribution by Group",
+       x = "Group", y = "AUC") +
+  theme_minimal()
+# Create the design matrix.
+design <- model.matrix(~group); colnames(design) <- c("Mean", "BottomVsMiddle", "BottomVsTop")
+# Fit the linear model.
+fit <- lmFit(sort_voom_CCLE_negative, design) %>% eBayes(.)
+# Create the top table of DE genes, and ensure that it's sorted by adjusted p-value.
+top_table <- topTable(fit, coef = "BottomVsTop", adjust = "BH", n = nrow(sort_voom_CCLE_negative)) %>%
+  arrange(adj.P.Val)
+
+# Tidy up the environment.
+rm(list = c("group", "design", "fit"))
+```
+
+### Explore the differential expression data
+```{r}
+# Plot the counts distribution of the gene with the smallest adjusted p-value across these cell lines.
+sort_voom_CCLE_negative[,1] %>% density(.) %>% plot(.)
+# How many genes are significantly differentially expressed at BH-adjusted α = 0.05?
+sum(top_table$adj.P.Val < 0.05)
+# Which genes are significantly differentially expressed at BH-adjusted α = 0.05?
+top_table %>% filter(adj.P.Val < 0.05) %>% .[1:10, ]
+
+# Plot fold change in AUC against adjusted p-value.
+# Create new columns in top_table for plotting.
+top_table$logAdjP <- -log10(top_table$adj.P.Val)
+top_table$highlight <- (top_table$adj.P.Val < 0.05)
+# Define the adjusted p-value threshold line.
+adj_p_thresh <- -log10(0.05)
+# Plot differential expression for diagnosis.
+volcano <- ggplot(top_table, aes(x = logFC, y = logAdjP)) +
+  geom_point(aes(color = highlight), size = 1) +
+  scale_color_manual(values = c("black", "red")) +
+  geom_hline(yintercept = adj_p_thresh, linetype = "dashed", color = "blue") +
+  labs(title = "Volcano Plot (Adjusted P-values)", x = "log2 Fold Change", y = "-log10(Adjusted P-value)") +
+  theme_minimal()
+# Print.
+volcano
+
+# Remove plotting columns from top_table.
+top_table <- top_table %>% dplyr::select(-logAdjP, -highlight)
+
+# Tidy up the environment.
+rm(list = c("adj_p_thresh"))
+```
+
+### Load pre-processed data
+```{r}
+# Tool for converting gene names without calling AnnotationDbi::select() every time.
+gene_tool <- readRDS("data/gene_tool.rds")
+
+# Tool for indexing cell lines to tissues.
+tissue_tool <- readRDS("data/tissue_tool.rds")
+```
+
+### Rank genes by limma-moderated t-statistic
+```{r}
+# Format genes for Reactome pathway analysis, converting to Entrez IDs for fgsea, while handling missing and duplicate Entrez IDs.
+ranked_genes <- top_table %>%
+  rownames_to_column(var = "ENSEMBL") %>% # Convert rownames to a column.
+  arrange(adj.P.Val) %>% # Ensure that the top_table is sorted by BH-adjusted p-value.
+  left_join(gene_tool, by = c("ENSEMBL" = "ENSEMBL")) %>% # Add information for Entrez ID and gene symbol.
+  dplyr::filter(!is.na(ENTREZID)) %>% # Remove genes without Entrez gene IDs.
+  distinct(ENTREZID, .keep_all = TRUE) %>% # In case of duplicates, keep only the first occurrence of each Entrez ID (i.e. the one with the lowest BH-adjusted p-value).
+  dplyr::select(ENTREZID, t) %>% # Keep only Entrez IDs and t-statistic.
+  arrange(t) %>% # Arrange by t-statistic for GSEA.
+  deframe() # Convert to named vector.
+```
+
+### Carry out gene set enrichment analysis
+```{r}
+#| warning: false
+# Suppress warning about ties in some gene ranks for GSEA.
+
+# Find Reactome pathways that these genes are present in.
+all_pathways <- ranked_genes %>% names(.) %>% reactomePathways(.)
+# 1:many mapping reflects that many genes map to multiple Reactome pathways.
+
+# Carry out GSEA analysis, excluding uninformative pathways with over 500 genes.
+gsea_results <- fgsea(pathways = all_pathways, stats = ranked_genes, maxSize = 500) %>% 
+  arrange(padj)
+
+# Identify pathways that are significantly enriched at a given BH-adjusted α.
+enriched_pathways <- gsea_results %>% dplyr::filter(padj < 0.05) %>% 
+  arrange(padj)
+
+# Identify shared parent pathways among significantly enriched pathways.
+parent_pathway_mapping <- collapsePathways(enriched_pathways, all_pathways, ranked_genes)
+parent_enriched_pathways <- enriched_pathways %>%
+  dplyr::filter(pathway %in% parent_pathway_mapping$mainPathways) %>%
+  arrange(padj)
+
+# Tidy up the environment.
+rm(list = c("ranked_genes", "all_pathways", "gsea_results", "parent_pathway_mapping"))
+```
+
+### Inspect significantly enriched Reactome pathways
+```{r}
+# Reactome pathways
+enriched_pathways
+# Parent Reactome pathways
+parent_enriched_pathways
+
+# Print a summary message
+paste0(
+  sum(top_table$adj.P.Val < 0.05), 
+  " genes are significantly differentially expressed with randomised IDs. ",
+  "After GSEA, ", 
+  nrow(enriched_pathways), 
+  " Reactome pathways were significantly enriched in this gene list. ",
+  "These pathways collapsed to ", 
+  nrow(parent_enriched_pathways), 
+  " parent Reactome pathway terms."
+)
+
+message
+```
+
+The mean bill length of penguins in the dataset is “r round(mean(na.omit(penguins$bill_length_mm)),2)”mm.
+
+### Tidy up the environment and R memory
+```{r}
+# rm(list = ls())
+# gc()
+```

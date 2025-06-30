@@ -33,13 +33,18 @@ library(org.Hs.eg.db)
 library(reactome.db)
 library(goseq)
 library(gplots)
-source('data/heatmap-mik.R')
+source('data/raw/heatmap-mik.R')
 library(knitr)
 library(kableExtra)
 library(devtools)
 library(viridis)
 library(openxlsx)
 set.seed(42)
+```
+
+### Define the drug of interest
+```{r}
+DOI <- "Dasatinib"
 ```
 
 ### Load CCLE gene expression data
@@ -65,21 +70,17 @@ voom_CCLE <- voom_dge$E
 rm(list = c("dge", "voom_dge"))
 ```
 
-### Load GDSC2 drug response data
+### Load GDSC drug response data
 ```{r}
 # Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
 # Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
-# GDSC2 <- fread("data/raw/GDSC2_fitted_dose_response_25Feb20.csv", sep= ';')
-
-# Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
-# Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
-GDSC2 <- read.xlsx("data/raw/GDSC1_fitted_dose_response_27Oct23.xlsx")
+GDSC <- read.xlsx("data/raw/GDSC2_fitted_dose_response_27Oct23.xlsx")
 
 # Convert column names to uppercase for consistency with CCLE.
-GDSC2$CELL_LINE_NAME <- toupper(GDSC2$CELL_LINE_NAME)
+GDSC$CELL_LINE_NAME <- toupper(GDSC$CELL_LINE_NAME)
 
 # Resolve discrepancies between IC50 values for drugs tested across multiple dose response curves.
-GDSC2 <- GDSC2 %>%
+GDSC <- GDSC %>%
   group_by(CELL_LINE_NAME, DRUG_NAME) %>%
   mutate(MEAN_LN_IC50 = mean(LN_IC50, na.rm = TRUE)) %>%
   ungroup()
@@ -88,7 +89,7 @@ GDSC2 <- GDSC2 %>%
 ### Format data
 ```{r}
 #| warning: false
-# Standardize CCLE and GDSC2 cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774, as well as https://www.cellosaurus.org/CVCL_S641 and https://www.cellosaurus.org/CVCL_1330
+# Standardize CCLE and GDSC cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774, as well as https://www.cellosaurus.org/CVCL_S641 and https://www.cellosaurus.org/CVCL_1330
 # CCLE:
 colnames(voom_CCLE)[colnames(voom_CCLE) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
 colnames(voom_CCLE)[colnames(voom_CCLE) == "KMH2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"] <- "KM-H2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"
@@ -97,8 +98,8 @@ split_cell_line_tissues <- colnames(voom_CCLE) %>% strsplit(., "_")
 colnames(voom_CCLE) <- strsplit(colnames(voom_CCLE), "_") %>% 
   lapply(., function(x) x[1]) %>% 
   unlist()
-# GDSC2:
-GDSC2 <- GDSC2 %>%
+# GDSC:
+GDSC <- GDSC %>%
   mutate(CELL_LINE_NAME = case_when(
     CELL_LINE_NAME == "T-T"    ~ "T-T",
     CELL_LINE_NAME == "KM-H2"  ~ "KM-H2",
@@ -106,41 +107,41 @@ GDSC2 <- GDSC2 %>%
     TRUE ~ gsub("-", "", CELL_LINE_NAME, fixed = TRUE)
   ))
 
-# Extract dasatinib response data from GDSC2.
-dasatinib_GDSC2 <- filter(GDSC2, DRUG_NAME == "Capivasertib")
+# Extract DOI response data from GDSC.
+DOI_GDSC <- filter(GDSC, DRUG_NAME == DOI)
 
 # Filter datasets for common cell lines.
-common_lines <- intersect(dasatinib_GDSC2$CELL_LINE_NAME,colnames(voom_CCLE))
+common_lines <- intersect(DOI_GDSC$CELL_LINE_NAME,colnames(voom_CCLE))
 match_voom_CCLE <- match(common_lines, colnames(voom_CCLE))
 common_voom_CCLE <- voom_CCLE[ , na.omit(match_voom_CCLE)]
-match_dasatinib_GDSC2 <- match(common_lines, dasatinib_GDSC2$CELL_LINE_NAME)
-common_dasatinib_GDSC2 <- dasatinib_GDSC2[na.omit(match_dasatinib_GDSC2),]
-colnames(common_dasatinib_GDSC2)[5] <- "CCLE_Name"
+match_DOI_GDSC <- match(common_lines, DOI_GDSC$CELL_LINE_NAME)
+common_DOI_GDSC <- DOI_GDSC[na.omit(match_DOI_GDSC),]
+colnames(common_DOI_GDSC)[5] <- "CCLE_Name"
 
 # Tidy up the environment.
-rm(list = c("common_lines", "match_voom_CCLE", "match_dasatinib_GDSC2"))
+rm(list = c("common_lines", "match_voom_CCLE", "match_DOI_GDSC"))
 ```
 
 ### Filter data
 ```{r}
-# Filter CCLE and GDSC2 data for BRCA and STAD cell lines with data for dasatinib.
+# Filter CCLE and GDSC data for BRCA and STAD cell lines with data for DOI.
 # GDSC (also adds a column for CDH1 expression data):
-sort_dasatinib_GDSC2 <- common_dasatinib_GDSC2 %>%
+sort_DOI_GDSC <- common_DOI_GDSC %>%
   filter(TCGA_DESC %in% c("BRCA", "STAD"))
-sort_dasatinib_GDSC2$CDH1 <- common_voom_CCLE %>%
+sort_DOI_GDSC$CDH1 <- common_voom_CCLE %>%
   as.data.frame() %>%
-  dplyr::select(any_of(sort_dasatinib_GDSC2$CCLE_Name)) %>%
+  dplyr::select(any_of(sort_DOI_GDSC$CCLE_Name)) %>%
   dplyr::slice(match("ENSG00000039068", rownames(.))) %>%
   unlist(use.names = FALSE) # flatten to a vector.
 
 # CCLE:
 sort_voom_CCLE <- common_voom_CCLE %>%
   as.data.frame() %>%
-  dplyr::select(any_of(sort_dasatinib_GDSC2$CCLE_Name)) %>% 
+  dplyr::select(any_of(sort_DOI_GDSC$CCLE_Name)) %>% 
   as.matrix()
 
 # Tidy up the environment.
-rm(list = c("common_voom_CCLE", "common_dasatinib_GDSC2"))
+rm(list = c("common_voom_CCLE", "common_DOI_GDSC"))
 ```
 
 ### Index cell lines to tissues
@@ -155,9 +156,9 @@ tissue_tool <- tissue_tool %>% mutate(
     str_remove_all("c") %>%
     str_replace_all("[[:punct:]]", "_"))
 
-# Create another tool for the same purpose, but only including breast and stomach cell lines with dasatinib response data.
+# Create another tool for the same purpose, but only including breast and stomach cell lines with DOI response data.
 sort_tissue_tool <- tissue_tool %>% filter(Tissue_Type %in% c("BREAST", "STOMACH")) # Cell lines from CCLE.
-common_lines <- intersect(colnames(sort_voom_CCLE), sort_tissue_tool$Cell_Line) # Cell lines in GDSC2 with dasatinib data.
+common_lines <- intersect(colnames(sort_voom_CCLE), sort_tissue_tool$Cell_Line) # Cell lines in GDSC with DOI data.
 sort_tissue_tool <- sort_tissue_tool %>% # Overlap between the two.
   filter(Cell_Line %in% common_lines) %>%
   arrange(factor(Cell_Line, levels = common_lines))
@@ -178,14 +179,14 @@ gene_tool <- rownames(CCLE) %>%
 
 ### Save pre-processed objects as .rds files
 ```{r}
-# GDSC2.
-saveRDS(GDSC2, file = "data/GDSC2.rds")
+# GDSC.
+saveRDS(GDSC, file = "data/GDSC.rds")
 
-# dasatinib_GDSC2.
-saveRDS(dasatinib_GDSC2, file = "data/dasatinib_GDSC2.rds")
+# DOI_GDSC.
+saveRDS(DOI_GDSC, file = "data/DOI_GDSC.rds")
 
-# sort_dasatinib_GDSC2.
-saveRDS(sort_dasatinib_GDSC2, file = "data/sort_dasatinib_GDSC2.rds")
+# sort_DOI_GDSC.
+saveRDS(sort_DOI_GDSC, file = "data/sort_DOI_GDSC.rds")
 
 # voom_CCLE.
 saveRDS(voom_CCLE, file = "data/voom_CCLE.rds")

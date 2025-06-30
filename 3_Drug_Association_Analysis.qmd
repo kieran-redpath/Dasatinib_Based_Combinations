@@ -8,8 +8,8 @@ theme: cosmo
 
 ## Summary
 + Reloads processed data from 0_Setup.qmd, 1_Differential_Expression_Analysis.qmd, and 2_Gene_Set_Enrichment_Analysis.qmd.
-+ Carries out matrix multiplication to transform gene expression data for all cell lines based on the expression values in gastric and breast cancer cell lines with dasatinib response data.
-+ Calculates Spearman correlations between pathway metagenes calculated with matrix multiplication and drug response across the entire set of cell lines shared between the GDSC2 and CCLE databases.
++ Carries out matrix multiplication to transform gene expression data for all cell lines based on the expression values in gastric and breast cancer cell lines with DOI response data.
++ Calculates Spearman correlations between pathway metagenes calculated with matrix multiplication and drug response across the entire set of cell lines shared between the GDSC and CCLE databases.
 + Saves a summary human readable .xlsx file containing relevant results.
 
 ### Load packages
@@ -31,7 +31,7 @@ library(org.Hs.eg.db)
 library(reactome.db)
 library(goseq)
 library(gplots)
-source('data/heatmap-mik.R')
+source('data/raw/heatmap-mik.R')
 library(knitr)
 library(evaluate)
 library(kableExtra)
@@ -42,11 +42,11 @@ set.seed(42)
 
 ### Load pre-processed data
 ```{r}
-# GDSC2 response data for all cell lines.
-GDSC2 <- readRDS("data/GDSC2.rds")
+# GDSC response data for all cell lines.
+GDSC <- readRDS("data/GDSC.rds")
 
-# GDSC2 dasatinib response data for cell lines used in differential expression analysis.
-sort_dasatinib_GDSC2 <- readRDS("data/sort_dasatinib_GDSC2.rds")
+# GDSC DOI response data for cell lines used in differential expression analysis.
+sort_DOI_GDSC <- readRDS("data/sort_DOI_GDSC.rds")
 
 # CCLE normalized gene expression data for all cell lines.
 voom_CCLE <- readRDS("data/voom_CCLE.rds")
@@ -136,64 +136,49 @@ rm(list = c("pathway" , "svd_x", "metagene_x", "trans_matrix", "metagene_y",
             "pathway_voom_CCLE", "pathway_sort_voom_CCLE"))
 ```
 
-### Isolate drug response data for each cell line
+### Isolate drug response data for each cell line - optimised
 ```{r}
-# # Create empty data matrix for drug response in all cell lines that have GDSC2 data.
-# drug_response <- matrix(0, length(unique(GDSC2$DRUG_NAME)), length(unique(GDSC2$CELL_LINE_NAME)))
-# rownames(drug_response) <- unique(GDSC2$DRUG_NAME)
-# colnames(drug_response) <- unique(GDSC2$CELL_LINE_NAME)
-# 
-# # Extract tidy formatted drug response (AUC) data from the GDSC2.
-# for(drug in rownames(drug_response)){
-#   for(cell_line in colnames(drug_response)){
-#     y <- GDSC2$AUC[GDSC2$DRUG_NAME == drug & GDSC2$CELL_LINE_NAME == cell_line]
-#     if(length(y) == 0){
-#       drug_response[drug, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
-#     } else{
-#       drug_response[drug, cell_line] <- y[1] # In case there are multiple values for a drug and cell_line combination, take the first match.
-#     }
-#   }
-# }
-# 
-# # Tidy up the environment.
-# rm(list = c("cell_line", "drug", "y"))
-```
+# Extract drug names and IDs
+drug_info <- GDSC %>%
+  dplyr::select(DRUG_ID, DRUG_NAME) %>%
+  distinct()
 
-### Isolate drug response data for each cell line
-```{r}
-# Extract drug names and IDs from GDSC2.
-drug_info <- unique(GDSC2[, c("DRUG_ID", "DRUG_NAME")])
+# Identify duplicated names
+duplicated_names <- drug_info %>%
+  count(DRUG_NAME) %>%
+  dplyr::filter(n > 1) %>%
+  pull(DRUG_NAME)
 
-# Identify duplicated drug names.
-duplicated_names <- drug_info$DRUG_NAME[duplicated(drug_info$DRUG_NAME)]
-drug_info$rownames <- ifelse(
-  drug_info$DRUG_NAME %in% duplicated_names,
-  paste0(drug_info$DRUG_NAME, "_", drug_info$DRUG_ID),
-  drug_info$DRUG_NAME
-)
+# Construct unique rownames
+drug_info <- drug_info %>%
+  mutate(
+    rownames = if_else(
+      DRUG_NAME %in% duplicated_names,
+      paste0(DRUG_NAME, "_", DRUG_ID),
+      DRUG_NAME
+    )
+  )
 
-# Create response matrix.
-drug_ids <- drug_info$DRUG_ID
-cell_lines <- unique(GDSC2$CELL_LINE_NAME)
-drug_response <- matrix(0, nrow = length(drug_ids), ncol = length(cell_lines))
-rownames(drug_response) <- drug_info$rownames
-colnames(drug_response) <- cell_lines
+# Merge GDSC with unique drug names
+GDSC_named <- GDSC %>%
+  left_join(drug_info, by = c("DRUG_ID", "DRUG_NAME"))
 
-# Fill response matrix.
-for (id in drug_ids) {
-  rowname <- drug_info$rownames[drug_info$DRUG_ID == id]
-  for (cell_line in cell_lines) {
-    response <- GDSC2$AUC[GDSC2$DRUG_ID == id & GDSC2$CELL_LINE_NAME == cell_line]
-    if(length(response) == 0){
-      drug_response[rowname, cell_line] <- 0 # If there is no data for the combination of drug and cell_line, assign 0s.
-    } else{
-      drug_response[rowname, cell_line] <- response # In case there are multiple values for a drug and cell_line combination, take the first match.
-    }
-  }
-}
+# Pivot to wide format
+drug_response <- GDSC_named %>%
+  dplyr::select(rownames, CELL_LINE_NAME, AUC) %>%
+  pivot_wider(
+    names_from = CELL_LINE_NAME,
+    values_from = AUC,
+    values_fill = 0
+  )
+
+# Convert to matrix
+drug_response <- drug_response %>%
+  column_to_rownames(var = "rownames") %>%
+  as.matrix()
 
 # Tidy up the environment.
-rm(list = c("id", "drug_ids", "rowname", "cell_lines", "cell_line", "response", "duplicated_names", "drug_info"))
+rm(list = c("GDSC_named", "duplicated_names", "drug_info"))
 ```
 
 ### Calculate correlations between metagene value and drug response
@@ -272,7 +257,7 @@ rm(list = c("cor_thresh", "i"))
 ```{r}
 # Create summary object.
 summary <- list()
-summary$sort_dasatinib_GDSC2 <- sort_dasatinib_GDSC2
+summary$sort_DOI_GDSC <- sort_DOI_GDSC
 
 # Add other gene IDs to the top_table of gene expression before adding it to the summary object.
 gene_tool_deduplicated <- gene_tool %>% distinct(ENSEMBL, .keep_all = TRUE)
