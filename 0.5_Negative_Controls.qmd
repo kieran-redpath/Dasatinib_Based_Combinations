@@ -211,6 +211,8 @@ message
 
 The mean bill length of penguins in the dataset is “r round(mean(na.omit(penguins$bill_length_mm)),2)”mm.
 
+`r sum(top_table$adj.P.Val < 0.05)` genes are significantly differentially expressed with randomised IDs. After GSEA, `r nrow(enriched_pathways)` Reactome pathways were significantly enriched in this gene list. These pathways collapsed to `r nrow(parent_enriched_pathways)` parent Reactome pathway terms.
+
 ### Tidy up the environment and R memory
 ```{r}
 # rm(list = ls())
