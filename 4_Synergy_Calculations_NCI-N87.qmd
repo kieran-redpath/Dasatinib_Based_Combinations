@@ -34,7 +34,7 @@ library(cowplot)
 ```{r}
 # Load combination data for any number of correctly indexed drug combinations (see the template file for what this should look like).
 # replace filename with a .xlsx file containing your data in the right format
-synergy.frame <- read.csv("data/raw/filename.csv")
+synergy.frame <- read.csv("data/raw/Normalised_Viability_Data.csv")
 synergy.frame <- na.omit(synergy.frame)
 
 # Define which type of synergy score you want to use ("HSA", "Loewe", "Bliss", or "ZIP")
@@ -50,6 +50,15 @@ synergy.frame <- synergy.frame %>%
   mutate(drug_col = case_when(
     drug_col == "AZD3759" ~ "Zorifertinib",
     TRUE ~ drug_col  # Keep other values unchanged
+  ))
+```
+
+### Convert any missing response values to NA, for clarity
+```{r}
+synergy.frame <- synergy.frame %>%
+  mutate(response = case_when(
+    response == 0 ~ NA,
+    TRUE ~ response  # Keep other values unchanged
   ))
 ```
 
