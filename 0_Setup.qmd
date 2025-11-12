@@ -7,12 +7,21 @@ theme: cosmo
 ---
 
 ## Summary
-+ Loads and normalizes gene expression data from the CCLE.
-+ Loads and processes drug response data from the GDSC.
-+ Filters these data to the relevant information for this project.
-+ Saves these outputs as .rds files for later use.
+
+-   Loads and normalizes gene expression data from the CCLE.
+-   Loads and processes drug response data from the GDSC.
+-   Filters these data to the relevant information for this project.
+-   Saves these outputs as .rds files for later use.
+
+### Start with a clean environment
+
+```{r}
+rm(list = ls())
+gc()
+```
 
 ### Load packages
+
 ```{r}
 #| results: hide
 #| warning: false
@@ -29,25 +38,29 @@ library(tidyverse)
 library(ggbeeswarm)
 library(dplyr)
 library(ReactomePA)
+library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(reactome.db)
 library(goseq)
 library(gplots)
 source('data/raw/heatmap-mik.R')
 library(knitr)
-library(kableExtra)
 library(devtools)
 library(viridis)
 library(openxlsx)
+
+# Set the random seed so results are reproducible.
 set.seed(42)
 ```
 
 ### Define the drug of interest
+
 ```{r}
 DOI <- "Dasatinib"
 ```
 
 ### Load CCLE gene expression data
+
 ```{r}
 # Load Homo sapiens gene data (including Entrez ID's).
 hs <- org.Hs.eg.db
@@ -71,6 +84,7 @@ rm(list = c("dge", "voom_dge"))
 ```
 
 ### Load GDSC drug response data
+
 ```{r}
 # Load the GDSC dataset, current release available here: www.cancerrxgene.org/downloads/bulk_download
 # Archived releases available via ftp: ftp.sanger.ac.uk/project/cancerrxgene/releases/
@@ -87,8 +101,10 @@ GDSC <- GDSC %>%
 ```
 
 ### Format data
+
 ```{r}
 #| warning: false
+
 # Standardize CCLE and GDSC cell line names, resolving a naming discrepancy between between cellosaurus cell lines www.cellosaurus.org/CVCL_3174 and www.cellosaurus.org/CVCL_1774, as well as https://www.cellosaurus.org/CVCL_S641 and https://www.cellosaurus.org/CVCL_1330
 # CCLE:
 colnames(voom_CCLE)[colnames(voom_CCLE) == "TT_OESOPHAGUS"] <- "T-T_OESOPHAGUS"
@@ -123,6 +139,7 @@ rm(list = c("common_lines", "match_voom_CCLE", "match_DOI_GDSC"))
 ```
 
 ### Filter data
+
 ```{r}
 # Filter CCLE and GDSC data for BRCA and STAD cell lines with data for DOI.
 # GDSC (also adds a column for CDH1 expression data):
@@ -145,6 +162,7 @@ rm(list = c("common_voom_CCLE", "common_DOI_GDSC"))
 ```
 
 ### Index cell lines to tissues
+
 ```{r}
 # Create a tool to find tissue type based on cell line name or vice versa.
 tissue_tool <- data.frame(
@@ -168,6 +186,7 @@ rm(list = c("split_cell_line_tissues", "common_lines"))
 ```
 
 ### Index alternative identifiers for all genes in the dataset
+
 ```{r}
 # Create the gene name reference tool.
 gene_tool <- rownames(CCLE) %>%
@@ -178,6 +197,7 @@ gene_tool <- rownames(CCLE) %>%
 ```
 
 ### Save pre-processed objects as .rds files
+
 ```{r}
 # GDSC.
 saveRDS(GDSC, file = "data/GDSC.rds")
@@ -205,6 +225,7 @@ saveRDS(gene_tool, file = "data/gene_tool.rds")
 ```
 
 ### Tidy up the environment and R memory
+
 ```{r}
 rm(list = ls())
 gc()

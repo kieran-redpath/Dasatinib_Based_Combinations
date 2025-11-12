@@ -7,10 +7,19 @@ theme: cosmo
 ---
 
 ## Summary
-+ Carries out differential expression analysis between BRCA and STAD cell lines with the top and bottom tertiles for DOI response.
-+ Saves these outputs as .rds files for later use.
+
+-   Carries out differential expression analysis between BRCA and STAD cell lines with the top and bottom tertiles for DOI response.
+-   Saves these outputs as .rds files for later use.
+
+### Start with a clean environment
+
+```{r}
+rm(list = ls())
+gc()
+```
 
 ### Load packages
+
 ```{r}
 #| results: hide
 #| warning: false
@@ -37,11 +46,17 @@ library(kableExtra)
 library(devtools)
 library(viridis)
 library(openxlsx)
+
+# Set the random seed so results are reproducible.
 set.seed(42)
 ```
 
 ### Load pre-processed data
+
 ```{r}
+# Tool for converting gene names without calling AnnotationDbi::select() every time.
+gene_tool <- readRDS("data/gene_tool.rds")
+
 # GDSC DOI response data for cell lines used in DE analysis.
 sort_DOI_GDSC <- readRDS("data/sort_DOI_GDSC.rds")
 
@@ -50,6 +65,7 @@ sort_voom_CCLE <- readRDS("data/sort_voom_CCLE.rds")
 ```
 
 ### Examine the data
+
 ```{r}
 # Check that all column names are identical between the CCLE and GDSC datasets
 sum(colnames(sort_voom_CCLE)==sort_DOI_GDSC$CCLE_Name)
@@ -58,6 +74,7 @@ names(sort_DOI_GDSC)
 ```
 
 ### Differential expression analysis
+
 ```{r}
 # Create groups for comparison, based on drug response to DOI.
 group <- cut(
@@ -88,6 +105,7 @@ rm(list = c("group", "design", "fit"))
 ```
 
 ### Explore the differential expression data
+
 ```{r}
 # Plot the counts distribution of the gene with the smallest adjusted p-value across these cell lines.
 sort_voom_CCLE[,1] %>% density(.) %>% plot(.)
@@ -97,16 +115,17 @@ sum(top_table$adj.P.Val < 0.05)
 # Plot fold change in AUC against adjusted p-value.
 # Create new columns in top_table for plotting.
 top_table$logAdjP <- -log10(top_table$adj.P.Val)
-top_table$highlight <- (top_table$adj.P.Val < 0.05)
+top_table$significant <- (top_table$adj.P.Val < 0.05)
 # Define the adjusted p-value threshold line.
 adj_p_thresh <- -log10(0.05)
 # Plot differential expression for diagnosis.
-volcano <- ggplot(top_table, aes(x = logFC, y = logAdjP)) +
-  geom_point(aes(color = highlight), size = 1) +
+volcano <- ggplot(top_table, aes(x = logFC, y = logAdjP, legend_position = "none")) +
+  geom_point(aes(color = significant), size = 1) +
   scale_color_manual(values = c("black", "red")) +
   geom_hline(yintercept = adj_p_thresh, linetype = "dashed", color = "blue") +
-  labs(title = "Volcano Plot (Adjusted P-values)", x = "log2 Fold Change", y = "-log10(Adjusted P-value)") +
-  theme_minimal()
+  labs(title = "Volcano Plot (Adjusted P-Values)", x = "log2 Fold Change", y = "-log10(Adjusted P-Value)") +
+  theme_minimal() +
+  theme(legend.position = "none")
 # Print.
 volcano
 # Save.
@@ -116,15 +135,49 @@ ggsave("1_output/volcano.png", plot = volcano, width = 3000, height = 2000, unit
 rm(list = c("adj_p_thresh"))
 ```
 
-### Save processed objects as .rds files
+### Save processed objects
+
 ```{r}
-# Remove plotting columns from top_table.
-top_table <- top_table %>% dplyr::select(-logAdjP, -highlight)
-# top_table
+# Remove plotting columns from top_table and save as .rds.
+top_table <- top_table %>% dplyr::select(-logAdjP, -significant)
+# top_table.
 saveRDS(top_table, file = "1_output/top_table.rds")
+
+# Create a copy of top_table for publication.
+top_table_pub <- top_table
+
+# Convert Ensembl ID rownames to a column.
+top_table_pub <- rownames_to_column(top_table_pub, "ENSEMBL")
+
+# Add a column for gene symbols converted from Ensembl ID's.
+top_table_pub <- top_table_pub %>% 
+left_join(gene_tool, by = c("ENSEMBL" = "ENSEMBL"))
+
+# Keep specified columns and reorder.
+top_table_pub <- top_table_pub %>%
+  dplyr::select(ENSEMBL, SYMBOL, adj.P.Val, t, AveExpr, logFC)
+
+# Keep only genes that are significant at BH-adjusted α < 0.05.
+top_table_pub <- top_table_pub %>% 
+  filter(adj.P.Val < 0.05)
+
+# Rename columns.
+top_table_pub <- dplyr::rename(top_table_pub, "Ensembl ID" = "ENSEMBL", "Gene Symbol" = "SYMBOL", "BH-Adjusted P-Value" = "adj.P.Val", "T-Statistic" = "t", "Average Expression" = "AveExpr", "Log2 Fold Change in Expression" = "logFC")
+
+# Round all numeric columns to 4 decimal places.
+top_table_pub[] <- lapply(top_table_pub, function(x) {
+  if (is.numeric(x)) round(x, 4) else x
+})
+
+# Inspect the top 10 differentially expressed genes.
+head(top_table_pub, 10)
+
+# Save table.
+write.csv(top_table_pub, file = "1_output/top_table_pub.csv")
 ```
 
 ### Tidy up the environment and R memory
+
 ```{r}
 rm(list = ls())
 gc()

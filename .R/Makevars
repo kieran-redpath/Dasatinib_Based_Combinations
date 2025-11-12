@@ -1,0 +1,14 @@
+# --- User overrides for R package compilation (no sudo needed) ---
+CXX = g++
+CXX11 = g++
+CXX14 = g++
+CXX17 = g++
+CXX20 = g++
+
+CXX11STD = -std=gnu++14
+CXX14STD = -std=gnu++14
+
+CXXFLAGS = -O2 -Wall -pipe
+CXX11FLAGS = -O2 -Wall -pipe
+CXX14FLAGS = -O2 -Wall -pipe
+CXX17FLAGS = -O2 -Wall -pipe

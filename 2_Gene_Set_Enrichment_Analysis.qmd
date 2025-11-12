@@ -6,14 +6,22 @@ editor: source
 theme: cosmo
 ---
 
-
 ## Summary
-+ Reloads processed data from 0_Setup.qmd and 1_Differential_Expression_Analysis.qmd
-+ Carries out gene set enrichment analysis for Reactome pathways on differentially expressed gene list, ranked by limma-moderated t-statistic.
-+ Collapses Reactome pathway terms to shared parent pathway terms.
-+ Saves these outputs as .rds files for later use.
+
+-   Reloads processed data from 0_Setup.qmd and 1_Differential_Expression_Analysis.qmd
+-   Carries out gene set enrichment analysis for Reactome pathways on differentially expressed gene list, ranked by limma-moderated t-statistic.
+-   Collapses Reactome pathway terms to shared parent pathway terms.
+-   Saves these outputs as .rds files for later use.
+
+### Start with a clean environment
+
+```{r}
+rm(list = ls())
+gc()
+```
 
 ### Load packages
+
 ```{r}
 #| results: hide
 #| warning: false
@@ -28,10 +36,13 @@ library(edgeR)
 library(fgsea)
 library(limma)
 library(reactome.db)
+
+# Set the random seed so results are reproducible.
 set.seed(42)
 ```
 
 ### Load pre-processed data
+
 ```{r}
 # Tool for converting gene names without calling AnnotationDbi::select() every time.
 gene_tool <- readRDS("data/gene_tool.rds")
@@ -44,6 +55,7 @@ top_table <- readRDS("1_output/top_table.rds")
 ```
 
 ### Rank genes by limma-moderated t-statistic
+
 ```{r}
 # Format genes for Reactome pathway analysis, converting to Entrez IDs for fgsea, while handling missing and duplicate Entrez IDs.
 ranked_genes <- top_table %>%
@@ -58,6 +70,7 @@ ranked_genes <- top_table %>%
 ```
 
 ### Carry out gene set enrichment analysis
+
 ```{r}
 #| warning: false
 # Suppress warning about ties in some gene ranks for GSEA.
@@ -84,16 +97,56 @@ parent_enriched_pathways <- enriched_pathways %>%
 rm(list = c("ranked_genes", "all_pathways", "gsea_results", "parent_pathway_mapping"))
 ```
 
-### Save processed objects as .rds files
-```{r}
-# enriched_pathways
-saveRDS(enriched_pathways, file = "2_output/enriched_pathways.rds")
+### Save parent enriched pathways
 
-# parent_enriched_pathways
+```{r}
+# Save parent_enriched_pathways as .rds.
 saveRDS(parent_enriched_pathways, file = "2_output/parent_enriched_pathways.rds")
+
+# Create a copy of parent_enriched_pathways for publication.
+parent_enriched_pathways_pub <- parent_enriched_pathways
+
+# Keep specified columns and reorder.
+parent_enriched_pathways_pub <- parent_enriched_pathways_pub %>% 
+  dplyr::select(pathway, size, padj, leadingEdge)
+
+# Keep only pathways that are significant at BH-adjusted α < 0.05.
+parent_enriched_pathways_pub <- parent_enriched_pathways_pub[parent_enriched_pathways_pub$padj < 0.05, ]
+
+# Convert genes to character.
+parent_enriched_pathways_pub$leadingEdge <- as.character(parent_enriched_pathways_pub$leadingEdge)
+for (i in 1:nrow(parent_enriched_pathways_pub)) {
+  # Split each element in the leadingEdge column.
+  genes <- unlist(strsplit(parent_enriched_pathways_pub$leadingEdge[i], "::"))
+  # Convert from Entrez IDs to gene symbols.
+  genes <- as.numeric(unlist(strsplit(gsub("c\\(|\\)|\"|\\s", "", parent_enriched_pathways_pub$leadingEdge[i]), ",")))
+  genes <- gene_tool$SYMBOL[match(genes, gene_tool$ENTREZID)]
+  # Optionally sort leading edge alphabetically.
+  # genes <- sort(genes)
+  # Rejoin.
+  parent_enriched_pathways_pub$leadingEdge[i] <- paste(genes, collapse = ", ")
+}
+
+# Round adjusted p-value to scientific notation with 3 decimal places.
+parent_enriched_pathways_pub$padj <- formatC(parent_enriched_pathways_pub$padj, format = "e", digits = 3)
+
+# Rename columns
+parent_enriched_pathways_pub <- dplyr::rename(parent_enriched_pathways_pub, "Reactome Pathway" = "pathway",  "No. of Genes in Pathway" = "size", "Adjusted P-Value" = "padj", "Leading Edge Genes" = "leadingEdge")
+
+# Save table for supplementary materials (including full list of leading edge genes).
+parent_enriched_pathways_sup <- parent_enriched_pathways_pub
+write.csv(parent_enriched_pathways_sup, file = "2_output/parent_enriched_pathways_sup.csv")
+
+# Remove leading edge genes and save table for in-text.
+parent_enriched_pathways_pub <- dplyr::select(parent_enriched_pathways_pub, -"Leading Edge Genes")
+write.csv(parent_enriched_pathways_pub, file = "2_output/parent_enriched_pathways_pub.csv")
+
+# Tidy up the environment.
+rm(list = c("i", "genes"))
 ```
 
 ### Tidy up the environment and R memory
+
 ```{r}
 rm(list = ls())
 gc()

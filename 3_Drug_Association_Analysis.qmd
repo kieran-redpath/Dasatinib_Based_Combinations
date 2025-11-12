@@ -7,12 +7,21 @@ theme: cosmo
 ---
 
 ## Summary
-+ Reloads processed data from 0_Setup.qmd, 1_Differential_Expression_Analysis.qmd, and 2_Gene_Set_Enrichment_Analysis.qmd.
-+ Carries out matrix multiplication to transform gene expression data for all cell lines based on the expression values in gastric and breast cancer cell lines with DOI response data.
-+ Calculates Spearman correlations between pathway metagenes calculated with matrix multiplication and drug response across the entire set of cell lines shared between the GDSC and CCLE databases.
-+ Saves a summary human readable .xlsx file containing relevant results.
+
+-   Reloads processed data from 0_Setup.qmd, 1_Differential_Expression_Analysis.qmd, and 2_Gene_Set_Enrichment_Analysis.qmd.
+-   Carries out matrix multiplication to transform gene expression data for all cell lines based on the expression values in gastric and breast cancer cell lines with DOI response data.
+-   Calculates Spearman correlations between pathway metagenes calculated with matrix multiplication and drug response across the entire set of cell lines shared between the GDSC and CCLE databases.
+-   Saves a summary human readable .xlsx file containing relevant results.
+
+### Start with a clean environment
+
+```{r}
+rm(list = ls())
+gc()
+```
 
 ### Load packages
+
 ```{r}
 #| results: hide
 #| warning: false
@@ -37,10 +46,14 @@ library(evaluate)
 library(kableExtra)
 library(devtools)
 library(viridis)
+library(openxlsx)
+
+# Set the random seed so results are reproducible.
 set.seed(42)
 ```
 
 ### Load pre-processed data
+
 ```{r}
 # GDSC response data for all cell lines.
 GDSC <- readRDS("data/GDSC.rds")
@@ -65,6 +78,7 @@ selected_enriched_pathways <- readRDS("2_output/parent_enriched_pathways.rds")
 ```
 
 ### Extract list of enriched genes in each pathway, converting to Ensembl IDs to match CCLE data.
+
 ```{r}
 # Extract entrez IDs in each enriched pathway as a list of named vectors.
 leading_edge_entrez <- lapply(seq_len(nrow(selected_enriched_pathways)), function(i) {
@@ -85,6 +99,7 @@ rm(list = c("entrez_to_ensembl", "leading_edge_entrez"))
 ```
 
 ### Carry out matrix multiplication
+
 ```{r}
 # Create empty data matrix for metagenes in cell lines of interest.
 pathway_matrix_x <- matrix(data = 0, nrow(selected_enriched_pathways), ncol(sort_voom_CCLE))
@@ -136,20 +151,21 @@ rm(list = c("pathway" , "svd_x", "metagene_x", "trans_matrix", "metagene_y",
             "pathway_voom_CCLE", "pathway_sort_voom_CCLE"))
 ```
 
-### Isolate drug response data for each cell line - optimised
+### Isolate drug response data for each cell line
+
 ```{r}
-# Extract drug names and IDs
+# Extract drug names and IDs.
 drug_info <- GDSC %>%
   dplyr::select(DRUG_ID, DRUG_NAME) %>%
   distinct()
 
-# Identify duplicated names
+# Identify duplicated names.
 duplicated_names <- drug_info %>%
   count(DRUG_NAME) %>%
   dplyr::filter(n > 1) %>%
   pull(DRUG_NAME)
 
-# Construct unique rownames
+# Construct unique rownames.
 drug_info <- drug_info %>%
   mutate(
     rownames = if_else(
@@ -159,11 +175,11 @@ drug_info <- drug_info %>%
     )
   )
 
-# Merge GDSC with unique drug names
+# Merge GDSC with unique drug names.
 GDSC_named <- GDSC %>%
   left_join(drug_info, by = c("DRUG_ID", "DRUG_NAME"))
 
-# Pivot to wide format
+# Pivot to wide format.
 drug_response <- GDSC_named %>%
   dplyr::select(rownames, CELL_LINE_NAME, AUC) %>%
   pivot_wider(
@@ -172,7 +188,7 @@ drug_response <- GDSC_named %>%
     values_fill = 0
   )
 
-# Convert to matrix
+# Convert to matrix.
 drug_response <- drug_response %>%
   column_to_rownames(var = "rownames") %>%
   as.matrix()
@@ -182,6 +198,7 @@ rm(list = c("GDSC_named", "duplicated_names", "drug_info"))
 ```
 
 ### Calculate correlations between metagene value and drug response
+
 ```{r}
 # Subset drug response data to only cell lines that have both gene expression and any drug response data.
 subset_drug_response <- drug_response %>%
@@ -202,6 +219,7 @@ rm(list = c("subset_drug_response", "subset_pathway_matrix_y"))
 ```
 
 ### Calculate correlations between metagene value and drug response
+
 ```{r}
 # How many drug/pathway interactions satisfy a given Spearman correlation coefficient threshold?
 for(i in seq(0.1, 1.0, by = 0.1)){
@@ -254,6 +272,7 @@ rm(list = c("cor_thresh", "i"))
 ```
 
 ### Output a summary document
+
 ```{r}
 # Create summary object.
 summary <- list()
@@ -270,22 +289,22 @@ summary$drug_metagene_correlation <- drug_metagene_correlation %>% as.data.frame
 summary$correlated_drugs <- correlated_drugs
 summary$correlated_pathways <- correlated_pathways
 
-# Create workbook
-library(openxlsx)
+# Define workbook object.
 wb <- createWorkbook()
 for (name in names(summary)) {
   addWorksheet(wb, name)
   writeData(wb, sheet = name, summary[[name]])
 }
 
-# Save the workbook
+# Save the workbook.
 saveWorkbook(wb, file = "3_output/summary.xlsx", overwrite = TRUE)
 
-# Tidy up the environment
+# Tidy up the environment.
 rm(list = c("correlated_drugs", "correlated_pathways", "wb", "name", "gene_tool_deduplicated"))
 ```
 
 ### Tidy up the environment and R memory
+
 ```{r}
 rm(list = ls())
 gc()
