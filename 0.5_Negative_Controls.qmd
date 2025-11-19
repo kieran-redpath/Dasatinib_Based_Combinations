@@ -37,13 +37,19 @@ library(tidyverse)
 library(ggbeeswarm)
 library(dplyr)
 library(ReactomePA)
+library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(reactome.db)
 library(goseq)
 library(gplots)
-library(knitr)
 library(devtools)
+library(viridis)
+library(openxlsx)
 library(fgsea)
+library(evaluate)
+library(gridExtra)
+library(synergyfinder)
+library(cowplot)
 
 # Set the random seed so results are reproducible.
 set.seed(42)
@@ -168,6 +174,6 @@ saveRDS(results, file = "data/negative_control_results.rds")
 ### Tidy up the environment and R memory
 
 ```{r}
-# rm(list = ls())
-# gc()
+rm(list = ls())
+gc()
 ```

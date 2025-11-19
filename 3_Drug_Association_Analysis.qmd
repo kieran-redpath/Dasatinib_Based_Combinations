@@ -35,18 +35,22 @@ library(data.table)
 library(magrittr)
 library(CePa)
 library(tidyverse)
+library(ggbeeswarm)
 library(dplyr)
+library(ReactomePA)
+library(AnnotationDbi)
 library(org.Hs.eg.db)
 library(reactome.db)
 library(goseq)
 library(gplots)
-source('data/raw/heatmap-mik.R')
-library(knitr)
-library(evaluate)
-library(kableExtra)
 library(devtools)
 library(viridis)
 library(openxlsx)
+library(fgsea)
+library(evaluate)
+library(gridExtra)
+library(synergyfinder)
+library(cowplot)
 
 # Set the random seed so results are reproducible.
 set.seed(42)
@@ -77,7 +81,7 @@ top_table <- readRDS("1_output/top_table.rds")
 selected_enriched_pathways <- readRDS("2_output/parent_enriched_pathways.rds")
 ```
 
-### Extract list of enriched genes in each pathway, converting to Ensembl IDs to match CCLE data.
+### Extract list of enriched genes in each pathway, converting to Ensembl IDs to match CCLE data
 
 ```{r}
 # Extract entrez IDs in each enriched pathway as a list of named vectors.
@@ -98,7 +102,7 @@ names(leading_edge_ensembl) <- selected_enriched_pathways$pathway
 rm(list = c("entrez_to_ensembl", "leading_edge_entrez"))
 ```
 
-### Carry out matrix multiplication
+### Carry out matrix multiplication to define metagenes for each pathway
 
 ```{r}
 # Create empty data matrix for metagenes in cell lines of interest.

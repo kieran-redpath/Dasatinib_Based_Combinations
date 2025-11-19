@@ -27,10 +27,27 @@ gc()
 #| message: false
 #| echo: false
 
-library(dplyr)
 library(ggplot2)
-library(gridExtra)
+library(limma)
+library(edgeR)
+library(data.table)
+library(magrittr)
+library(CePa)
+library(tidyverse)
+library(ggbeeswarm)
+library(dplyr)
+library(ReactomePA)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(reactome.db)
+library(goseq)
+library(gplots)
+library(devtools)
+library(viridis)
 library(openxlsx)
+library(fgsea)
+library(evaluate)
+library(gridExtra)
 library(synergyfinder)
 library(cowplot)
 
@@ -58,6 +75,7 @@ data.type = "viability"
 synergy.frame <- synergy.frame %>%
   mutate(drug_col = case_when(
     drug_col == "AZD3759" ~ "Zorifertinib",
+    drug_col == "BI-2536" ~ "BI2536",
     TRUE ~ drug_col  # Keep other values unchanged
   ))
 ```
@@ -356,7 +374,7 @@ for(i in 1:length(trans.synergy.response.data)){
   
   # Label plot.
   # All drug concentrations are expressed in µM, with the exception of BI-2536, which is expressed in nM.
-  if(drug2 == "BI-2536"){
+  if(drug2 == "BI2536"){
     druglabs <- c(rep(paste0(drug1, " (µM)"), nrow(s.df)), rep(paste0(drug2, " (nM)"), nrow(v.df)))
   } else{
     druglabs <- c(rep(paste0(drug1, " (µM)"), nrow(s.df)), rep(paste0(drug2, " (µM)"), nrow(v.df)))
@@ -369,7 +387,7 @@ for(i in 1:length(trans.synergy.response.data)){
   )
   
   # Reorder the rows so that drug2 is always on top.
-  drug2_label <- ifelse(drug2 == "Metformin", paste0(drug2, " (mM)"), paste0(drug2, " (µM)"))
+  drug2_label <- ifelse(drug2 == "BI2536", paste0(drug2, " (nM)"), paste0(drug2, " (µM)"))
   drug1_label <- paste0(drug1, " (µM)")
   
   # Reorder the data frame based on the drug column.
@@ -388,7 +406,7 @@ for(i in 1:length(trans.synergy.response.data)){
   
   # Extract and remove legends.
   viability.plot.with.legend <- viability.plot + theme(legend.position = "bottom")
-  shared.legend <- cowplot::get_legend(viability.plot.with.legend)
+  shared.legend <- cowplot::get_plot_component(viability.plot.with.legend, 'guide-box-bottom', return_all = TRUE)
   viability.plot <- viability.plot + theme(legend.position = "none")
   synergy.plot <- synergy.plot + theme(legend.position = "none")
   # Put them together.
@@ -413,6 +431,253 @@ rm(list = c("A4.height", "A4.margin", "A4.width",
             "drug1", "drug2", "druglabs", "labels",
             "s.df", "v.df", "label.table",
             "synergy.plot", "viability.plot", "table.plot", "combined.plot"))
+```
+
+### Define some plotting parameters for synergy and viability as a single figure
+
+```{r}
+# Create a vector for plotting minor axis ticks.
+minor.ticks <- list()
+for(n in 1:7){
+  minor.ticks[[n]] <- c(n+0.5, n+0.75, n+0.875)
+}
+minor.ticks <- unlist(minor.ticks)
+
+# Define variables for plotting to match the size of an A4 page with standard margins, and desired font size and family.
+A4.margin <- 2.54
+A4.width <- 21 - 2 * A4.margin
+A4.height <- 29.7 - 2 * A4.margin
+theme_set(theme_minimal(base_family = "serif"))
+axis.title.size <- 9
+axis.ticks.size <- 9
+plot.title.size <- 9
+
+# re-order list object alphabetically for shared plot
+last_word <- sub(".*_", "", names(trans.synergy.response.data))
+trans.synergy.response.data <- trans.synergy.response.data[order(last_word)]
+
+# Tidy up the environment.
+rm(list = c("last_word"))
+```
+
+### Define an object to extract a legend from to attach to the larger plot
+
+```{r}
+#| warning: false
+#| message: false
+
+# Define legend object
+legend_df <- data.frame(
+  x = 1:3,
+  y = 1:3,
+  treatment = factor(
+    c("combination", "dasatinib", "monotherapy"),
+    levels = c("combination", "dasatinib", "monotherapy")
+  )
+)
+legend_plot <- ggplot(legend_df, aes(x, y, colour = treatment, fill = treatment)) +
+  geom_line() +
+  geom_point(size = 1.3) +
+  geom_ribbon(aes(ymin = y - 0.1, ymax = y + 0.1), alpha = 0.2) +
+  scale_colour_manual(
+    values = c("combination" = "darkblue",
+               "dasatinib" = "black",
+               "monotherapy" = "cyan"),
+    labels = c("Combination", "Dasatinib", "Monotherapy")
+  ) +
+  scale_fill_manual(
+    values = c("combination" = "darkblue",
+               "dasatinib" = "black",
+               "monotherapy" = "cyan"),
+    labels = c("Combination", "Dasatinib", "Monotherapy")
+  ) +
+  guides(
+    colour = guide_legend(title = "Treatment"),
+    fill   = guide_legend(title = "Treatment")
+  ) +
+theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(size = 9, family = "serif", face = "bold"),
+    legend.text  = element_text(size = 9, family = "serif")
+  )
+
+shared_legend <- cowplot::get_plot_component(legend_plot, 'guide-box-bottom', return_all = TRUE)
+```
+
+### Plot synergy and viability for all combinations as a single figure
+
+```{r}
+#| warning: false
+#| echo: false
+
+# Define the object containing all plots for a single figure
+figure <- list()
+
+for(i in 1:length(trans.synergy.response.data)){
+  # Specify current drugs
+  # Hard-coded columns 1 and 2
+  drug1 <- gsub("_conc", "", colnames(trans.synergy.response.data[[i]])[1])
+  drug2 <- gsub("_conc", "", colnames(trans.synergy.response.data[[i]])[2])
+  
+  # For viability plot.
+  # Set up dataframe of relevant data for viability plot.
+  v.df <- as.data.frame(trans.synergy.response.data[[i]])[,1:8]
+  v.df <- v.df %>% mutate_if(is.numeric, round, digits = 3) 
+  v.df$dose <- rownames(v.df)
+  v.df$data_order <- seq(1, nrow(v.df))
+  v.df$exp_order <- 2^(1:nrow(v.df))
+  
+  # For synergy plot.
+  # Set up dataframe of relevant data for synergy plot.
+  s.df <- as.data.frame(trans.synergy.response.data[[i]])[,9:10]
+  s.df <- s.df %>% mutate_if(is.numeric, round, digits = 3) 
+  s.df$dose <- rownames(s.df)
+  s.df$data_order <- seq(1, nrow(s.df))
+  
+  # For viability plot.
+  labels <- c()
+  for(j in 1:nrow(v.df)){
+    labels[j] <- paste0(v.df[j,2])
+  }
+  v.df$labels <- labels
+  
+  # For synergy plot.
+  labels  <- c()
+  for(j in 1:nrow(v.df)){
+    labels[j] <- paste0(v.df[j,1])
+  }
+  s.df$labels <- labels
+  
+  # Plot synergy.
+  synergy.plot <- ggplot(data = s.df, mapping = aes(x = v.df$data_order, y = s.df[,paste0(synergy.type, "_synergy_mean")])) +
+    geom_blank(data = s.df, mapping = aes(x = v.df$data_order, y = s.df[,paste0(synergy.type, "_synergy_mean")])) +
+    geom_hline(yintercept = 0, col = "red", linetype = "longdash") +
+    geom_point(mapping = aes(x = v.df$data_order, y = s.df[, paste0(synergy.type, "_synergy_mean")]), size = 1.3, colour = "grey50") +
+    geom_line(mapping = aes(x = v.df$data_order, y = s.df[, paste0(synergy.type, "_synergy_mean")]), group = 1, colour = "grey50") +
+    geom_ribbon(aes(ymin = s.df[, paste0(synergy.type, "_synergy_mean")] - s.df[, paste0(synergy.type, "_synergy_sem")],
+                    ymax = s.df[, paste0(synergy.type, "_synergy_mean")] + s.df[, paste0(synergy.type, "_synergy_sem")]),
+                fill = "grey50", alpha = 0.2) +
+    coord_cartesian(ylim = c(-30, 20)) +
+    scale_x_continuous(breaks = v.df$data_order, minor_breaks = minor.ticks, expand = expansion(add = 0.25)) +
+    theme(title = element_text(size = plot.title.size, margin = margin(t = 30)),
+          axis.text.x = element_blank(), axis.title.x = element_blank(), plot.title = element_text(hjust = 0.5, colour = "black", face = "bold", size = plot.title.size), axis.text.y = element_text(size = axis.ticks.size, colour = "black"), axis.title.y = element_text(size = axis.title.size, colour = "black", margin = margin(r = 5)), panel.grid.major = element_line(color = "grey85"), panel.grid.minor = element_line(color = "grey85"),
+          plot.margin = margin(b = 5)) +
+    ylab(paste0(synergy.type, " synergy (± SEM)")) +
+    ggtitle(paste0(drug2))
+  
+  # Plot viability.
+  viability.plot <- ggplot(data = v.df) +
+    
+    # Plot lines, points, and ribbons.
+    
+    # For combination.
+    geom_line(mapping = aes(x = v.df$data_order, y = Combo_response, group = 1, colour = paste0(drug1, " + ", drug2))) +
+    geom_point(mapping = aes(x = v.df$data_order, y = Combo_response, group = 1, colour = paste0(drug1, " + ", drug2)),
+               size = 1.3) +
+    geom_ribbon(mapping = aes(x = v.df$data_order, ymin = Combo_response - Combo_sem, ymax = Combo_response + Combo_sem, fill = paste0(drug1, " + ", drug2)), alpha = 0.2) +
+    
+    # For drug 1.
+    geom_line(mapping = aes(x = v.df$data_order, y = v.df[, paste0(drug1, "_response")], group = 1, colour = drug1)) +
+    geom_point(mapping = aes(x = v.df$data_order, y = v.df[, paste0(drug1, "_response")], group = 1, colour = drug1), size = 1.3) +
+    geom_ribbon(mapping = aes(x = v.df$data_order, ymin = v.df[, paste0(drug1, "_response")] - v.df[, paste0(drug1, "_sem")], ymax = v.df[, paste0(drug1, "_response")] + v.df[, paste0(drug1, "_sem")],  fill = drug1), alpha = 0.2) +
+    
+    # For drug 2.
+    geom_line(mapping = aes(x = v.df$data_order, y = v.df[, paste0(drug2, "_response")], group = 1, colour = drug2)) +
+    geom_point(mapping = aes(x = v.df$data_order, y = v.df[, paste0(drug2, "_response")], group = 1, colour = drug2), size = 1.3) +
+    geom_ribbon(mapping = aes(x = v.df$data_order,  ymin = v.df[, paste0(drug2, "_response")] - v.df[, paste0(drug2, "_sem")], ymax = v.df[, paste0(drug2, "_response")] + v.df[, paste0(drug2, "_sem")], fill = drug2), alpha = 0.2) +
+    
+    # Set colours.
+    scale_color_manual(name = "Treatment", values = c("darkblue", "black", "cyan"), limits = c(paste0(drug1, " + ", drug2), drug1, drug2)) +
+    scale_fill_manual(name = "Treatment", values = c("darkblue", "black", "cyan"), limits = c(paste0(drug1, " + ", drug2), drug1, drug2)) +   
+    
+    # Define titles and aesthetic parameters.
+    coord_cartesian(ylim=c(0, 120)) +
+    scale_x_continuous(breaks = v.df$data_order, minor_breaks = minor.ticks, expand = expansion(add = 0.25)) +
+    theme(text = element_text(colour = "black"), axis.text.x = element_blank(), axis.title.x = element_blank(),
+          legend.text = element_text(size = axis.ticks.size, colour = "black"), legend.title = element_text(size = axis.title.size, colour = "black"), panel.grid.major = element_line(color = "grey85"), panel.grid.minor = element_line(color = "grey85"),
+          # legend.position = c(0.95, 0.3),
+          axis.text.y = element_text(size = axis.ticks.size, colour = "black"), axis.title.y = element_text(size = axis.title.size, colour = "black", margin = margin(r = 5))) +
+    ylab("Relative cell viability (%, ± SEM)")
+  
+  # Label plot.
+  # All drug concentrations are expressed in µM, with the exception of BI2536, which is expressed in nM.
+  if(drug2 == "BI2536"){
+    druglabs <- c(rep(paste0(drug1, " (µM)"), nrow(s.df)), rep(paste0(drug2, " (nM)"), nrow(v.df)))
+  } else{
+    druglabs <- c(rep(paste0(drug1, " (µM)"), nrow(s.df)), rep(paste0(drug2, " (µM)"), nrow(v.df)))
+  }
+  # Create a table of labels.
+  label.table <- data.frame(
+    exp_order = v.df$data_order,
+    labels = c(s.df$labels, v.df$labels),
+    drug = druglabs 
+  )
+  
+  # Reorder the rows so that drug2 is always on top.
+  drug2_label <- ifelse(drug2 == "BI2536", paste0(drug2, " (nM)"), paste0(drug2, " (µM)"))
+  drug1_label <- paste0(drug1, " (µM)")
+  
+  # Reorder the data frame based on the drug column.
+  label.table <- label.table %>%
+    arrange(factor(drug, levels = c(drug2_label, drug1_label)))
+  
+  # Convert the drug column to a factor with specified levels to enforce order in the plot.
+  label.table$drug <- factor(label.table$drug, levels = c(drug2_label, drug1_label))
+  
+  table.plot <- ggplot(label.table, aes(x = exp_order, y = drug)) +
+    geom_text(aes(label = labels), size = axis.ticks.size/.pt, family = "serif") +
+    theme_void() +
+    theme(axis.text.y = element_text(size = axis.ticks.size, colour = "black", margin = margin(r = 10)), axis.title.x = element_blank(), text = element_text(family = "serif")) +
+    coord_cartesian(clip = "off") +
+    scale_x_continuous(expand = expansion(add = 0.25))
+  
+  # Extract and remove legends.
+  viability.plot.with.legend <- viability.plot + theme(legend.position = "bottom")
+  viability.plot <- viability.plot + theme(legend.position = "none")
+  synergy.plot <- synergy.plot + theme(legend.position = "none")
+  # Put them together.
+  combined.plot <- plot_grid(
+    synergy.plot, viability.plot, table.plot,
+    rel_heights = c(1.0, 1.4, 0.3), ncol = 1,
+    axis = "lr", align = "v", byrow = TRUE
+  )
+  figure[[i]] <- combined.plot + theme(legend.position = "none", plot.margin = margin(6, 6, 6, 6))
+}
+
+# Create vector of labels for panels
+figure_labels <- LETTERS[1:length(figure)]
+
+# Tile panels into 2 rows × 5 columns and label each one
+final_plot <- cowplot::plot_grid(
+  plotlist = figure,
+  ncol = 5,
+  labels = figure_labels,
+  label_size = 14,       # adjust to preference
+  label_x = 0.02,        # left alignment of labels
+  label_y = 0.99         # top alignment of labels
+)
+
+# Define shared title
+shared_title <- ggplot() +
+  labs(title = "Synergy and Viability of Dasatinib-based Drug Combinations in NCI-N87") +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    panel.background = element_blank(),
+    plot.margin = margin(20, 0, 0, 0)
+  )
+
+final_with_legend <- cowplot::plot_grid(
+  shared_title,
+  final_plot,
+  shared_legend,
+  ncol = 1,
+  rel_heights = c(0.12, 1, 0.12)
+)
+
+ggsave("4_output/plots/figure.png",
+       final_with_legend,
+       width = 3 * A4.width, height = 1.5 * A4.width, units = "cm", dpi = 600)
 ```
 
 ### Save processed data as an .rds file
